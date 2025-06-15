@@ -54,28 +54,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (error) {
             if (error.code === 'PGRST116') {
               console.log('No profile found for user, will create on onboarding');
-              clearPlayerData();
+              // Don't clear data immediately - let user complete onboarding first
             } else {
               console.error('Error fetching profile:', error);
-              toast.error('Error loading your profile: ' + error.message);
+              toast.error('Error loading your profile. Check your database setup.');
             }
-          } else if (profile?.onboarding_complete) {
+          } else if (profile && profile.onboarding_complete) {
             console.log('Syncing profile from Supabase:', profile);
+            
+            // Load all saved data from Supabase
             if (profile.stats) {
               localStorage.setItem('playerStats', JSON.stringify(profile.stats));
+              console.log('Loaded stats from Supabase:', profile.stats);
             }
             if (profile.settings) {
               localStorage.setItem('playerProfile', JSON.stringify(profile.settings));
+              console.log('Loaded settings from Supabase:', profile.settings);
             }
+            
+            // Load additional game data if available
+            if (profile.quests) {
+              localStorage.setItem('playerQuests', JSON.stringify(profile.quests));
+            }
+            if (profile.habits) {
+              localStorage.setItem('playerHabits', JSON.stringify(profile.habits));
+            }
+            if (profile.journal_entries) {
+              localStorage.setItem('journalEntries', JSON.stringify(profile.journal_entries));
+            }
+            if (profile.skill_tree) {
+              localStorage.setItem('skillTree', JSON.stringify(profile.skill_tree));
+            }
+            if (profile.mastered_skills) {
+              localStorage.setItem('masteredSkills', JSON.stringify(profile.mastered_skills));
+            }
+            
             localStorage.setItem('onboardingComplete', 'true');
-            toast.success('Profile loaded from the cloud!');
+            toast.success('Welcome back! Your progress has been loaded.');
           } else {
-            console.log('Profile found but onboarding not complete');
+            console.log('Profile found but onboarding not complete, clearing data');
             clearPlayerData();
           }
         } catch (err) {
           console.error('Error syncing profile:', err);
-          toast.error('Failed to sync your profile from the cloud.');
+          toast.error('Failed to sync your profile. Using local storage for now.');
         }
       } else {
         console.log('No session, clearing player data');

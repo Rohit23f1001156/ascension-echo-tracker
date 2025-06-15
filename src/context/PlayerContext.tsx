@@ -149,28 +149,22 @@ const sortSkillNodes = (nodes: SkillNode[]): SkillNode[] => {
   return nodesCopy;
 };
 
-// Helper function to calculate XP needed for next level
-const calculateXpForNextLevel = (currentLevel: number): number => {
-  return 1000 + (currentLevel * 500);
+// Helper function to calculate XP needed for a specific level
+const calculateXpForLevel = (level: number): number => {
+  return 1000 + (level * 500);
 };
 
 // Helper function to determine current level from total XP
 const calculateLevelFromXP = (totalXp: number): { level: number, xpForNextLevel: number } => {
   let level = 1;
-  let cumulativeXp = 0;
   
-  while (true) {
-    const xpNeededForThisLevel = calculateXpForNextLevel(level - 1);
-    if (cumulativeXp + xpNeededForThisLevel > totalXp) {
-      break;
-    }
-    cumulativeXp += xpNeededForThisLevel;
+  while (totalXp >= calculateXpForLevel(level)) {
     level++;
   }
   
   return {
     level,
-    xpForNextLevel: calculateXpForNextLevel(level - 1)
+    xpForNextLevel: calculateXpForLevel(level)
   };
 };
 
@@ -232,7 +226,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     if (savedStats) {
       try {
         const parsedStats = JSON.parse(savedStats);
-        // Merge with initialStats to ensure all keys are present, especially `buffs`
+        // Merge with initialStats to ensure all keys are present
         const mergedStats = { ...initialStats, ...parsedStats };
         
         // Recalculate level and xpNextLevel based on current XP using new formula
@@ -400,6 +394,53 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only on app startup
+
+  // Save to Supabase function
+  const saveToSupabase = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('No user found, skipping Supabase save');
+        return;
+      }
+
+      console.log('Saving all data to Supabase for user:', user.id);
+      
+      const dataToSave = {
+        id: user.id,
+        stats: stats,
+        settings: profile,
+        quests: quests,
+        habits: habits,
+        journal_entries: journalEntries,
+        skill_tree: skillTree,
+        mastered_skills: Array.from(masteredSkills),
+        onboarding_complete: true,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase.from('profiles').upsert(dataToSave);
+
+      if (error) {
+        console.error("Supabase save error:", error);
+        toast.error("Failed to save to cloud: " + error.message);
+      } else {
+        console.log('Successfully saved all data to Supabase');
+        toast.success('Progress saved to cloud!');
+      }
+    } catch (err) {
+      console.error('Error saving to Supabase:', err);
+      toast.error('Failed to save to cloud. Check your connection.');
+    }
+  };
+
+  // Auto-save to Supabase every 30 seconds if there's data
+  useEffect(() => {
+    if (stats.name) { // Only save if user has completed onboarding
+      const interval = setInterval(saveToSupabase, 30000); // Save every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [stats, profile, quests, habits, journalEntries, skillTree, masteredSkills]);
 
   useEffect(() => {
     localStorage.setItem('playerStats', JSON.stringify(stats));
@@ -625,41 +666,13 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         ...newStats,
         coins: isFirstTime ? (prev.coins || 0) + 20 : (prev.coins || 0),
       };
-      
-      // Save to Supabase
-      if (newStats.name) {
-        const saveProfile = async () => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-              const { error } = await supabase.from('profiles').upsert({
-                id: user.id,
-                stats: updatedStats,
-                settings: { ...profile, ...newProfile },
-                onboarding_complete: true,
-                updated_at: new Date().toISOString(),
-              });
-              
-              if (error) {
-                console.error('Supabase profile save error:', error);
-                toast.error('Failed to save your profile to the cloud: ' + error.message);
-              } else {
-                console.log('Profile saved successfully to Supabase');
-                toast.success('Profile saved to the cloud!');
-              }
-            }
-          } catch (err) {
-            console.error('Error saving profile:', err);
-            toast.error('Failed to save your profile to the cloud.');
-          }
-        };
-        saveProfile();
-      }
-      
       return updatedStats;
     });
     setProfile(prev => ({ ...prev, ...newProfile }));
     localStorage.setItem('onboardingComplete', 'true');
+    
+    // Save to Supabase immediately after onboarding
+    setTimeout(saveToSupabase, 1000);
   };
 
   const clearLevelUpData = () => setLevelUpData(null);
@@ -746,6 +759,9 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
          skills: masteredSkills.size + 1, // +1 for the skill we just mastered
        };
     });
+
+    // Save to Supabase after skill mastery
+    setTimeout(saveToSupabase, 2000);
   };
 
   const startSkillQuest = (skillId: string) => {
@@ -1063,6 +1079,9 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         coins: Math.max(0, prevStats.coins + coinsChange),
       };
     });
+
+    // Save to Supabase after significant changes
+    setTimeout(saveToSupabase, 2000);
   };
 
   const toggleHabit = (habitId: string) => {

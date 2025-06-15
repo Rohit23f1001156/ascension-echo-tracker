@@ -105,7 +105,7 @@ const Onboarding = () => {
         ...formStats,
         level: 1,
         xp: 0,
-        xpNextLevel: 1000, // Updated to use new formula
+        xpNextLevel: 1000, // First level needs 1000 XP
         class: "Novice",
         title: "Newcomer",
         skills: 0,
@@ -127,22 +127,32 @@ const Onboarding = () => {
         return;
       }
 
-      console.log('Saving profile to Supabase for user:', user.id);
-      const { error } = await supabase.from('profiles').upsert({
+      console.log('Saving complete profile to Supabase for user:', user.id);
+      
+      const profileData = {
         id: user.id,
         updated_at: new Date().toISOString(),
         stats: statsToSave,
         settings: settingsToSave,
+        quests: [], // Initialize empty arrays
+        habits: [],
+        journal_entries: [],
+        skill_tree: null,
+        mastered_skills: [],
         onboarding_complete: true,
-      });
+      };
+
+      const { error } = await supabase.from('profiles').upsert(profileData);
 
       if (error) {
         console.error("Supabase profile save error:", error);
-        toast.error("Failed to save your profile to the cloud: " + error.message);
-        return;
+        toast.error("Failed to save your profile to the cloud. Please check your database setup.");
+        // Don't return - let them continue with local storage
+      } else {
+        console.log('Profile saved successfully to Supabase');
+        toast.success('Profile saved to the cloud!');
       }
 
-      console.log('Profile saved successfully to Supabase');
       localStorage.setItem("onboardingComplete", "true");
       toast.success(`Welcome, ${name}!`, {
           description: "You've been granted a welcome bonus of 20 shiny coins to start your journey. Spend them wisely!",
@@ -150,7 +160,10 @@ const Onboarding = () => {
       navigate('/');
     } catch (err) {
       console.error('Error during onboarding:', err);
-      toast.error('An error occurred during setup. Please try again.');
+      toast.error('An error occurred during setup. Data saved locally.');
+      // Still allow them to continue
+      localStorage.setItem("onboardingComplete", "true");
+      navigate('/');
     } finally {
       setIsSubmitting(false);
     }
