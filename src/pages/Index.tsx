@@ -1,5 +1,3 @@
-
-
 import { Link } from "react-router-dom";
 import {
   CardHeader,
@@ -22,6 +20,7 @@ import {
   Star,
   DollarSign,
   RotateCcw,
+  ArrowUp,
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import SharedLayout from "@/components/layout/SharedLayout";
@@ -50,12 +49,28 @@ const quickActions = [
 ];
 
 const Index = () => {
-  const { stats: systemStats } = usePlayer();
+  const { stats: systemStats, levelUpAnimation } = usePlayer();
 
   const handleRestart = () => {
     localStorage.clear();
     window.location.reload();
   };
+
+  const StatItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: number | string }) => (
+    <div className="flex items-center gap-3">
+      <Icon className="w-5 h-5 text-primary" />
+      <span className="font-semibold">{label}</span>
+      <span className="font-semibold ml-auto flex items-center gap-1.5">
+        {value}
+        {levelUpAnimation && (
+          <span className="flex items-center text-green-400 animate-fade-in font-bold">
+            <ArrowUp size={16} />
+            <span>+1</span>
+          </span>
+        )}
+      </span>
+    </div>
+  );
 
   return (
     <SharedLayout>
@@ -74,7 +89,7 @@ const Index = () => {
           <HoverTiltWrapper className="system-card max-w-2xl mx-auto">
             <div className="status-card-inner">
               <CardHeader>
-                <CardTitle className="text-2xl font-bold text-center tracking-widest uppercase">Status</CardTitle>
+                <CardTitle className="text-2xl font-bold text-center tracking-widest uppercase font-serif">Status</CardTitle>
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
@@ -114,36 +129,12 @@ const Index = () => {
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                  <div className="flex items-center gap-3">
-                    <ChevronsUp className="w-5 h-5 text-primary" />
-                    <span className="font-semibold">Strength</span>
-                    <span className="font-semibold ml-auto">{systemStats.strength}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Heart className="w-5 h-5 text-primary" />
-                    <span className="font-semibold">Stamina</span>
-                    <span className="font-semibold ml-auto">{systemStats.stamina}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Crosshair className="w-5 h-5 text-primary" />
-                    <span className="font-semibold">Concentration</span>
-                    <span className="font-semibold ml-auto">{systemStats.concentration}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Brain className="w-5 h-5 text-primary" />
-                    <span className="font-semibold">Intelligence</span>
-                    <span className="font-semibold ml-auto">{systemStats.intelligence}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <DollarSign className="w-5 h-5 text-primary" />
-                    <span className="font-semibold">Wealth</span>
-                    <span className="font-semibold ml-auto">{systemStats.wealth}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Star className="w-5 h-5 text-primary" />
-                    <span className="font-semibold">Skills</span>
-                    <span className="font-semibold ml-auto">{systemStats.skills}</span>
-                  </div>
+                  <StatItem icon={ChevronsUp} label="Strength" value={systemStats.strength} />
+                  <StatItem icon={Heart} label="Stamina" value={systemStats.stamina} />
+                  <StatItem icon={Crosshair} label="Concentration" value={systemStats.concentration} />
+                  <StatItem icon={Brain} label="Intelligence" value={systemStats.intelligence} />
+                  <StatItem icon={DollarSign} label="Wealth" value={systemStats.wealth} />
+                  <StatItem icon={Star} label="Skills" value={systemStats.skills} />
                 </div>
               </CardContent>
             </div>

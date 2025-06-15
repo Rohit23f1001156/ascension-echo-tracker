@@ -1,6 +1,12 @@
+
 import React, { useEffect } from 'react';
+import { Star } from 'lucide-react';
+import { usePlayer } from '@/context/PlayerContext';
+import LevelUpDialog from '@/components/LevelUpDialog';
 
 const SharedLayout = ({ children }: { children: React.ReactNode }) => {
+  const { stats, levelUpData, clearLevelUpData } = usePlayer();
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
@@ -35,10 +41,19 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="blue-flow-border"></div>
       
       <div className="min-h-screen bg-black/70 backdrop-blur-sm relative z-10">
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-background/50 border border-primary/30 shadow-lg p-2 rounded-lg text-foreground">
+          <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+          <span className="font-bold text-lg">{stats.skillPoints}</span>
+        </div>
         <div className="container mx-auto px-4 py-8">
           {children}
         </div>
       </div>
+      <LevelUpDialog
+        isOpen={!!levelUpData}
+        onClose={clearLevelUpData}
+        levelUpInfo={levelUpData}
+      />
     </div>
   );
 };

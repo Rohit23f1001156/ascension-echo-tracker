@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from '@/components/ui/sonner';
 
@@ -24,6 +23,7 @@ export interface SystemStats {
   intelligence: number;
   wealth: number;
   skills: number;
+  skillPoints: number;
 }
 
 export interface UserProfile {
@@ -40,6 +40,9 @@ interface PlayerContextType {
   addQuest: (questData: Omit<Quest, 'id'>) => void;
   toggleQuest: (questId: string) => void;
   updatePlayerProfile: (stats: Partial<SystemStats>, profile: Partial<UserProfile>) => void;
+  levelUpData: { newLevel: number } | null;
+  clearLevelUpData: () => void;
+  levelUpAnimation: boolean;
 }
 
 // Initial Data
@@ -70,6 +73,7 @@ const initialStats: SystemStats = {
   intelligence: 0,
   wealth: 0,
   skills: 1,
+  skillPoints: 0,
 };
 
 const initialProfile: UserProfile = {
@@ -99,6 +103,8 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     const savedCompleted = localStorage.getItem('completedQuests');
     return savedCompleted ? new Set(JSON.parse(savedCompleted)) : new Set();
   });
+  const [levelUpData, setLevelUpData] = useState<{ newLevel: number } | null>(null);
+  const [levelUpAnimation, setLevelUpAnimation] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('playerStats', JSON.stringify(stats));
@@ -130,6 +136,8 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('onboardingComplete', 'true');
   };
 
+  const clearLevelUpData = () => setLevelUpData(null);
+
   const toggleQuest = (questId: string) => {
     const newCompletedSet = new Set(completedQuests);
     const quest = quests.find(q => q.id === questId);
@@ -155,8 +163,11 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       let newIntelligence = prevStats.intelligence;
       let newWealth = prevStats.wealth;
       let newSkills = prevStats.skills;
+      let newSkillPoints = prevStats.skillPoints;
+      let leveledUp = false;
 
       while (newXp >= newXpNextLevel) {
+        leveledUp = true;
         newLevel++;
         newXp -= newXpNextLevel;
         newXpNextLevel = Math.floor(newXpNextLevel * 1.5);
@@ -166,10 +177,15 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         newIntelligence += 1;
         newWealth += 1;
         newSkills += 1;
+        newSkillPoints += 2; // Formula: +2 skill points per level
+      }
 
-        toast(`🆙 LEVEL UP! You are now Level ${newLevel} 🎉`, {
-          description: "Gained: +1 Strength, +1 Stamina, +1 Intelligence, +1 Concentration, +1 Wealth, +1 Skills. Perks Unlocked: ✨ Momentum Boost (2-day streak!)",
-        });
+      if (leveledUp) {
+        setLevelUpData({ newLevel });
+        setLevelUpAnimation(true);
+        setTimeout(() => {
+          setLevelUpAnimation(false);
+        }, 3000);
       }
 
       const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];
@@ -188,11 +204,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         intelligence: newIntelligence,
         wealth: newWealth,
         skills: newSkills,
+        skillPoints: newSkillPoints,
       };
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile };
+  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 };
