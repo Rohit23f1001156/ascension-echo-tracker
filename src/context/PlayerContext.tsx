@@ -112,11 +112,31 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [stats, setStats] = useState<SystemStats>(() => {
     const savedStats = localStorage.getItem('playerStats');
-    return savedStats ? JSON.parse(savedStats) : initialStats;
+    if (savedStats) {
+      try {
+        const parsedStats = JSON.parse(savedStats);
+        // Merge with initialStats to ensure all keys are present, especially `buffs`
+        return { ...initialStats, ...parsedStats };
+      } catch (e) {
+        console.error("Failed to parse playerStats from localStorage", e);
+        return initialStats;
+      }
+    }
+    return initialStats;
   });
   const [profile, setProfile] = useState<UserProfile>(() => {
     const savedProfile = localStorage.getItem('playerProfile');
-    return savedProfile ? JSON.parse(savedProfile) : initialProfile;
+    if (savedProfile) {
+      try {
+        const parsedProfile = JSON.parse(savedProfile);
+        // Merge with initialProfile for robustness against data structure changes
+        return { ...initialProfile, ...parsedProfile };
+      } catch (e) {
+        console.error("Failed to parse playerProfile from localStorage", e);
+        return initialProfile;
+      }
+    }
+    return initialProfile;
   });
   const [quests, setQuests] = useState<Quest[]>(() => {
     const savedQuests = localStorage.getItem('playerQuests');
@@ -271,9 +291,9 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
          buffs: newBuffs,
        };
     });
- };
+  };
 
- const startSkillQuest = (skillId: string) => {
+  const startSkillQuest = (skillId: string) => {
     setActiveSkillQuests(prev => {
       const newActiveQuests = new Map(prev);
       if (!newActiveQuests.has(skillId)) {
