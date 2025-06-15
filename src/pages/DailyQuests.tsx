@@ -1,19 +1,29 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Flame, Repeat, Edit } from "lucide-react";
+import { ArrowLeft, Flame, Repeat, Edit, Trash2 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import { toast } from "@/components/ui/sonner";
 import { EditQuestDialog } from "@/components/EditQuestDialog";
 import { AddDailyQuestDialog } from "@/components/AddDailyQuestDialog";
 import SharedLayout from "@/components/layout/SharedLayout";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const DailyQuests = () => {
-  const { quests, completedQuests, toggleQuest, stats, setConfettiConfig } = usePlayer();
+  const { quests, completedQuests, toggleQuest, stats, setConfettiConfig, deleteQuest } = usePlayer();
   const [allGoodQuestsWereDone, setAllGoodQuestsWereDone] = useState(false);
   
   const totalXpPossible = useMemo(() => quests.filter(q => q.type === 'good').reduce((sum, q) => sum + q.xp, 0), [quests]);
@@ -58,7 +68,6 @@ const DailyQuests = () => {
       setAllGoodQuestsWereDone(false);
     }
   }, [allGoodQuestsCompleted, allGoodQuestsWereDone, setConfettiConfig]);
-
 
   const xpProgress = totalXpPossible > 0 ? (currentXpEarned / totalXpPossible) * 100 : 0;
 
@@ -132,6 +141,27 @@ const DailyQuests = () => {
                     <Edit className="w-4 h-4" />
                   </Button>
                 </EditQuestDialog>
+                {!quest.isRecurring && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the quest "{quest.title}".
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteQuest(quest.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Delete</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             </CardContent>
           </Card>

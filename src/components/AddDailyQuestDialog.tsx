@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,7 +43,7 @@ import { Label } from "@/components/ui/label";
 const questFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   xp: z.coerce.number().int().min(1, { message: "XP must be at least 1." }).max(100, { message: "XP cannot exceed 100." }),
-  duration: z.coerce.number().int().min(1, "Duration must be at least 1 minute.").optional(),
+  duration: z.coerce.number().int().min(1, "Duration must be at least 1 minute.").max(180, "Max duration is 180 min. For longer tasks, please create a separate quest.").optional(),
   isBadHabit: z.boolean().default(false),
   difficulty: z.enum(["Easy", "Medium", "Hard"]).default("Easy"),
   recurrence: z.enum(["None", "Daily", "Weekly", "Custom"]).default("None"),
@@ -102,8 +101,8 @@ export function AddDailyQuestDialog() {
   const calculateXp = React.useCallback(() => {
     if (!duration || !difficulty || duration <= 0) return 1;
 
-    const multipliers = { Easy: 1, Medium: 1.5, Hard: 2 };
-    const baseXP = duration / 5;
+    const multipliers = { Easy: 1.5, Medium: 2.0, Hard: 3.0 };
+    const baseXP = duration / 2;
     const multiplier = multipliers[difficulty];
     const finalXP = Math.floor(baseXP * multiplier);
 

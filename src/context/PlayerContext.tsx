@@ -64,6 +64,7 @@ interface PlayerContextType {
   completedQuests: Set<string>;
   addQuest: (questData: Omit<Quest, 'id' | 'category' | 'lastCompleted' | 'streak'> & { category?: Quest['category'] }) => void;
   updateQuest: (questId: string, data: Partial<Quest>) => void;
+  deleteQuest: (questId: string) => void;
   toggleQuest: (questId: string) => void;
   updatePlayerProfile: (stats: Partial<SystemStats>, profile: Partial<UserProfile>) => void;
   levelUpData: { newLevel: number, perk: Buff | null } | null;
@@ -372,6 +373,16 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         })
     );
     toast.success("Quest updated successfully!");
+  };
+
+  const deleteQuest = (questId: string) => {
+    setQuests(prevQuests => prevQuests.filter(q => q.id !== questId));
+    setCompletedQuests(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(questId);
+        return newSet;
+    });
+    toast.success("Quest deleted.");
   };
 
   const updatePlayerProfile = (newStats: Partial<SystemStats>, newProfile: Partial<UserProfile>) => {
@@ -824,7 +835,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, updateQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig };
+  const value = { stats, profile, quests, completedQuests, addQuest, updateQuest, deleteQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig };
 
   return (
     <PlayerContext.Provider value={value}>
