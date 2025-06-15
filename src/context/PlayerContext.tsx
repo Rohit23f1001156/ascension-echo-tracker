@@ -254,7 +254,6 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let questsNeedUpdate = false;
     let completedQuestsNeedUpdate = false;
-    let coinsToDeduct = 0;
 
     const updatedQuests = [...quests];
     const updatedCompletedQuests = new Set(completedQuests);
@@ -270,22 +269,21 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
             updatedCompletedQuests.delete(quest.id);
             completedQuestsNeedUpdate = true;
           }
-          // If the last completion was not yesterday, reset the streak and penalize
+          // If the last completion was not yesterday, reset the streak and notify
           if (!isYesterday(lastCompletedDate)) {
+             if (quest.streak && quest.streak > 0) {
+              toast.warning(`Streak Lost for "${quest.title}"`, {
+                description: "You missed a day, but you can start a new streak today!",
+              });
+            }
             updatedQuests[index] = { ...quest, streak: 0 };
             questsNeedUpdate = true;
-            coinsToDeduct += 5; // Penalty for breaking a streak
           }
         }
         
         // TODO: Weekly/Custom quest logic would go here
       }
     });
-
-    if (coinsToDeduct > 0) {
-      setStats(prev => ({...prev, coins: Math.max(0, prev.coins - coinsToDeduct)}));
-      toast.error(`You lost ${coinsToDeduct} coins for breaking your daily streaks!`);
-    }
 
     if (questsNeedUpdate) {
       setQuests(updatedQuests);
@@ -672,13 +670,33 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
           finalXp *= (1 + statBonus(prevStats[statToBoost]));
         }
 
-        // Apply streak bonus for recurring quests
-        if (questForXpCalc.isRecurring && (questForXpCalc.streak || 0) > 1) {
-            const streakBonus = Math.min(0.5, ((questForXpCalc.streak || 0) - 1) * 0.05); // 5% per day, max 50%
+        // Apply streak bonus for recurring quests based on milestones
+        if (questForXpCalc.isRecurring && (questForXpCalc.streak || 0) > 0) {
+          const streak = questForXpCalc.streak || 0;
+          let streakBonus = 0;
+          let milestoneMessage = "";
+      
+          if (streak >= 30) {
+            streakBonus = 0.30;
+            milestoneMessage = "30-Day Streak! Incredible consistency!";
+            setConfettiConfig({ recycle: false, numberOfPieces: 500 });
+            setTimeout(() => setConfettiConfig(null), 6000);
+          } else if (streak >= 7) {
+            streakBonus = 0.10;
+            milestoneMessage = "7-Day Streak! Keep it up!";
+            setConfettiConfig({ recycle: false, numberOfPieces: 200 });
+            setTimeout(() => setConfettiConfig(null), 4000);
+          } else if (streak >= 3) {
+            streakBonus = 0.05;
+            milestoneMessage = "3-Day Streak! You're on a roll!";
+          }
+      
+          if (streakBonus > 0) {
             finalXp *= (1 + streakBonus);
-            if (streakBonus > 0) {
-                toast.success(`+${Math.round(streakBonus * 100)}% streak bonus!`);
-            }
+            toast.success(`+${Math.round(streakBonus * 100)}% Bonus XP!`, {
+              description: milestoneMessage,
+            });
+          }
         }
 
         // Apply buffs
