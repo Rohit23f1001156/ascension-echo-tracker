@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
@@ -42,7 +43,6 @@ const AnalyticsChart = () => {
             };
         });
     }, [questLog]);
-
 
     return (
         <Card className="bg-card/80 border-primary/20">
