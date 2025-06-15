@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import Header from './Header';
 import { usePlayer } from '@/context/PlayerContext';
@@ -10,32 +9,49 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
   const [isReflectionModalOpen, setReflectionModalOpen] = useState(false);
 
   useEffect(() => {
-    const checkReflectionTime = () => {
-      try {
-        const notificationSettings = JSON.parse(localStorage.getItem('notificationSettings') || '{}');
-        if (notificationSettings.journal === false) { // Explicitly check for false
-          return;
-        }
-
-        const lastReflectionDate = localStorage.getItem('lastReflectionDate');
-        if (lastReflectionDate && isToday(parseISO(lastReflectionDate))) {
-          return;
-        }
-
-        const now = new Date();
-        if (now.getHours() >= 20) {
-          setReflectionModalOpen(true);
-        }
-      } catch (error) {
-        console.error("Failed to check for reflection time:", error);
+    const showNotification = (title: string, options: NotificationOptions) => {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, options);
       }
     };
-    
-    // Check after a short delay to ensure context is loaded
-    const timer = setTimeout(checkReflectionTime, 3000);
 
-    return () => clearTimeout(timer);
-  }, []); // Run only on initial mount
+    const notificationInterval = setInterval(() => {
+      const now = new Date();
+      const notificationSettings = JSON.parse(localStorage.getItem('notificationSettings') || '{}');
+      
+      // 1. Morning Motivation
+      if (notificationSettings.morning) {
+        const lastMorningNotification = localStorage.getItem('lastMorningNotification');
+        // At 9:00 AM
+        if (now.getHours() === 9 && now.getMinutes() === 0) {
+          if (!lastMorningNotification || !isToday(parseISO(lastMorningNotification))) {
+            showNotification("☀️ Good Morning, Shadow Hunter!", {
+              body: "Time to conquer your quests for today. Let's make progress!",
+              icon: '/favicon.ico',
+            });
+            localStorage.setItem('lastMorningNotification', now.toISOString());
+          }
+        }
+      }
+
+      // 2. End-of-Day Journal Reminder
+      if (notificationSettings.journal) {
+        const lastReflectionDate = localStorage.getItem('lastReflectionDate');
+        // At 8 PM (20:00)
+        if (now.getHours() === 20 && now.getMinutes() === 0) {
+          if (!lastReflectionDate || !isToday(parseISO(lastReflectionDate))) {
+            setReflectionModalOpen(true);
+            showNotification("🌙 Evening Reflection", {
+              body: "Time to reflect on your journey today. Open your journal.",
+              icon: '/favicon.ico',
+            });
+          }
+        }
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(notificationInterval);
+  }, []); // Run only on mount
 
   const handleSaveReflection = (data: ReflectionData) => {
     const reflectionContent = `### 🏆 Wins

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,13 +14,35 @@ const Settings = () => {
     streak: true,
     journal: true,
   });
+  const [notificationPermission, setNotificationPermission] = useState('default');
 
   useEffect(() => {
+    // Ensure Notification API is available
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+
     const storedSettings = localStorage.getItem('notificationSettings');
     if (storedSettings) {
       setNotificationSettings(JSON.parse(storedSettings));
     }
   }, []);
+
+  const handleRequestPermission = () => {
+    if (!('Notification' in window)) {
+        toast.error("This browser does not support desktop notification");
+        return;
+    }
+
+    Notification.requestPermission().then((permission) => {
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        toast.success("Notifications enabled!");
+      } else {
+        toast.error("Notifications not enabled. You can change this in your browser settings.");
+      }
+    });
+  };
 
   const handleSettingChange = (key: keyof typeof notificationSettings, value: boolean) => {
     const newSettings = { ...notificationSettings, [key]: value };
@@ -52,10 +73,22 @@ const Settings = () => {
           <CardHeader>
             <CardTitle>Notifications</CardTitle>
             <CardDescription>
-              Manage your reminders. Note: True push notifications require further setup and are not yet implemented.
+              Manage your reminders and browser notification permissions. Note: True push notifications require further setup.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between p-4 rounded-md bg-muted/50 border">
+                <div>
+                    <Label>Browser Notifications</Label>
+                    <p className="text-sm text-muted-foreground capitalize">
+                        Current status: <span className="font-semibold">{notificationPermission}</span>
+                    </p>
+                </div>
+                {notificationPermission !== 'granted' && (
+                    <Button onClick={handleRequestPermission}>Enable</Button>
+                )}
+            </div>
+
             <div className="flex items-center justify-between">
               <Label htmlFor="morning-notifications" className="cursor-pointer">Morning Motivation</Label>
               <Switch
