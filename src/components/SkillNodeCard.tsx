@@ -1,26 +1,40 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Lock, Unlock, CheckCircle, XCircle } from "lucide-react";
+import { Lock, Unlock, CheckCircle, XCircle, Edit, Trash2 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import { SkillNode } from "@/data/skillTreeData";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { EditSkillNodeDialog } from "@/components/EditSkillNodeDialog";
 
 interface SkillNodeCardProps {
   node: SkillNode;
   pathNodes: SkillNode[];
+  pathId: string;
 }
 
-const SkillNodeCard = ({ node, pathNodes }: SkillNodeCardProps) => {
+const SkillNodeCard = ({ node, pathNodes, pathId }: SkillNodeCardProps) => {
   const { 
     masteredSkills, 
     activeSkillQuests, 
     startSkillQuest, 
     cancelSkillQuest, 
-    toggleSkillTask 
+    toggleSkillTask,
+    deleteSkillNode
   } = usePlayer();
 
   const isMastered = masteredSkills.has(node.id);
@@ -44,7 +58,7 @@ const SkillNodeCard = ({ node, pathNodes }: SkillNodeCardProps) => {
 
   return (
     <Card className={cn(
-      "transition-all duration-300 flex flex-col h-full bg-card/70",
+      "transition-all duration-300 flex flex-col h-full bg-card/70 group",
       isLocked && "bg-card/30 border-dashed opacity-60",
       isMastered && "border-green-500/50",
       isActive && "border-primary/80 shadow-lg shadow-primary/20 animate-pulse-border",
@@ -52,15 +66,47 @@ const SkillNodeCard = ({ node, pathNodes }: SkillNodeCardProps) => {
       !isLocked && !isMastered && "animate-fade-in"
     )}>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span className="truncate pr-2">{node.name}</span>
-          {isLocked 
-            ? <Lock className="w-5 h-5 text-muted-foreground flex-shrink-0" /> 
-            : isMastered
-              ? <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-              : <Unlock className="w-5 h-5 text-primary flex-shrink-0" />
-          }
-        </CardTitle>
+        <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center justify-between flex-grow">
+                <span className="truncate pr-2">{node.name}</span>
+            </CardTitle>
+            <div className="flex items-center gap-2 flex-shrink-0">
+                {isLocked 
+                    ? <Lock className="w-5 h-5 text-muted-foreground flex-shrink-0" /> 
+                    : isMastered
+                    ? <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                    : <Unlock className="w-5 h-5 text-primary flex-shrink-0" />
+                }
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <EditSkillNodeDialog node={node} pathId={pathId}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    </EditSkillNodeDialog>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete this quest.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteSkillNode(pathId, node.id)} className={buttonVariants({ variant: "destructive" })}>
+                                    Delete
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            </div>
+        </div>
         <CardDescription>{node.description}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col">

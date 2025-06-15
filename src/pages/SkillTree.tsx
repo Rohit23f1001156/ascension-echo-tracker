@@ -38,7 +38,7 @@ const SkillTree = () => {
               <div className="relative">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
                   {path.nodes.map((node, index) => (
-                    <SkillNodeCard key={node.id} node={node} pathNodes={path.nodes} />
+                    <SkillNodeCard key={node.id} node={node} pathNodes={path.nodes} pathId={path.id} />
                   ))}
                 </div>
               </div>

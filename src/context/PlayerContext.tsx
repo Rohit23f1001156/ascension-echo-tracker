@@ -65,6 +65,8 @@ interface PlayerContextType {
   toggleSkillTask: (skillId: string, task: string) => void;
   skillTree: SkillPath[];
   addSkillNode: (data: Omit<SkillNode, 'id' | 'description' | 'dependencies' | 'isCustom'> & { pathId: string }) => void;
+  updateSkillNode: (pathId: string, skillId: string, data: Partial<Pick<SkillNode, 'name' | 'description' | 'xp' | 'tasks'>>) => void;
+  deleteSkillNode: (pathId: string, skillId: string) => void;
 }
 
 // A new reusable sorting function
@@ -434,6 +436,54 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const updateSkillNode = (pathId: string, skillId: string, data: Partial<Pick<SkillNode, 'name' | 'description' | 'xp' | 'tasks'>>) => {
+    setSkillTree(prevTree => {
+      const newTree = JSON.parse(JSON.stringify(prevTree));
+      const pathIndex = newTree.findIndex((p: SkillPath) => p.id === pathId);
+
+      if (pathIndex > -1) {
+        const nodeIndex = newTree[pathIndex].nodes.findIndex((n: SkillNode) => n.id === skillId);
+        if (nodeIndex > -1) {
+          newTree[pathIndex].nodes[nodeIndex] = {
+            ...newTree[pathIndex].nodes[nodeIndex],
+            ...data
+          };
+          newTree[pathIndex].nodes = sortSkillNodes(newTree[pathIndex].nodes);
+          toast.success("Quest updated successfully!");
+        }
+      } else {
+        toast.error("Could not find skill path.");
+      }
+      return newTree;
+    });
+  };
+
+  const deleteSkillNode = (pathId: string, skillId: string) => {
+    setSkillTree(prevTree => {
+      const newTree = JSON.parse(JSON.stringify(prevTree));
+      const pathIndex = newTree.findIndex((p: SkillPath) => p.id === pathId);
+      if (pathIndex > -1) {
+        const originalNodes = newTree[pathIndex].nodes;
+        newTree[pathIndex].nodes = sortSkillNodes(originalNodes.filter((n: SkillNode) => n.id !== skillId));
+        toast.success("Quest deleted successfully!");
+      } else {
+        toast.error("Could not find skill path.");
+      }
+      return newTree;
+    });
+
+    setMasteredSkills(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(skillId);
+      return newSet;
+    });
+    setActiveSkillQuests(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(skillId);
+      return newMap;
+    });
+  };
+
   const toggleQuest = (questId: string) => {
     const newCompletedSet = new Set(completedQuests);
     const quest = quests.find(q => q.id === questId);
@@ -567,7 +617,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode };
+  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 };
