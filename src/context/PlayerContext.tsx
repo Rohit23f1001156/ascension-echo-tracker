@@ -352,7 +352,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
         newActiveQuests.set(skillId, completedTasks);
 
-        const skillNode = skillTreeData.flatMap(p => p.nodes).find(n => n.id === skillId);
+        const skillNode = skillTree.flatMap(p => p.nodes).find(n => n.id === skillId);
         if (skillNode && completedTasks.size === skillNode.tasks.length) {
             masterSkill(skillId, skillNode.xp);
         }
