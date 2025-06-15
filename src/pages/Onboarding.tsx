@@ -14,12 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { User, Shield, Swords, Brain, Heart, Crosshair, ChevronsUp, DollarSign } from 'lucide-react';
+import { User, Shield, Swords, Brain, Heart, Crosshair, ChevronsUp, DollarSign, Clock } from 'lucide-react';
 
 const onboardingSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   avatar: z.string(),
   lifeAreas: z.array(z.string()).min(1, "Select at least one area."),
+  timeBudget: z.record(z.string(), z.number()).default({}),
   strength: z.number().min(1).max(10),
   stamina: z.number().min(1).max(10),
   concentration: z.number().min(1).max(10),
@@ -30,7 +31,14 @@ const onboardingSchema = z.object({
 
 type OnboardingValues = z.infer<typeof onboardingSchema>;
 
-const lifeAreasOptions = ["Health", "Study/DSA & Core CS", "Wealth/Crypto Trading"];
+const lifeAreasOptions = [
+    "Fitness & Health",
+    "Learning & Skills",
+    "Career & Finance",
+    "Mindfulness & Mental Health",
+    "Social Life",
+    "Hobbies & Creativity"
+];
 const avatarOptions = [
     { value: 'user', label: 'Hunter', icon: <User className="w-6 h-6" /> },
     { value: 'shield', label: 'Tanker', icon: <Shield className="w-6 h-6" /> },
@@ -50,12 +58,13 @@ const Onboarding = () => {
   const { updatePlayerProfile } = usePlayer();
   const navigate = useNavigate();
 
-  const { control, handleSubmit, trigger, getValues } = useForm<OnboardingValues>({
+  const { control, handleSubmit, trigger, getValues, watch } = useForm<OnboardingValues>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
       name: '',
       avatar: 'user',
       lifeAreas: [],
+      timeBudget: {},
       strength: 5,
       stamina: 5,
       concentration: 5,
@@ -65,11 +74,13 @@ const Onboarding = () => {
     },
   });
 
+  const selectedLifeAreas = watch('lifeAreas');
+
   const nextStep = async () => {
     let fieldsToValidate: (keyof OnboardingValues)[] = [];
     if (step === 1) fieldsToValidate = ['name', 'avatar'];
     if (step === 2) fieldsToValidate = ['lifeAreas'];
-    if (step === 3) fieldsToValidate = ['strength', 'stamina', 'concentration', 'intelligence', 'wealth'];
+    if (step === 4) fieldsToValidate = ['strength', 'stamina', 'concentration', 'intelligence', 'wealth'];
     
     const isValid = await trigger(fieldsToValidate);
     if (isValid) setStep(s => s + 1);
@@ -77,10 +88,10 @@ const Onboarding = () => {
   const prevStep = () => setStep(s => s - 1);
 
   const onSubmit = (data: OnboardingValues) => {
-    const { name, avatar, difficultyPreference, lifeAreas, ...stats } = data;
+    const { name, avatar, difficultyPreference, lifeAreas, timeBudget, ...stats } = data;
     updatePlayerProfile(
         { name, avatar, ...stats }, 
-        { difficultyPreference, lifeAreas, timeBudget: {} } // Time budget not implemented in form yet
+        { difficultyPreference, lifeAreas, timeBudget: timeBudget || {} }
     );
     navigate('/');
   };
@@ -155,7 +166,35 @@ const Onboarding = () => {
 
               {step === 3 && (
                  <div className="space-y-6 animate-fade-in">
-                    <h3 className="font-bold text-xl">Step 3: Assess Your Power</h3>
+                    <h3 className="font-bold text-xl">Step 3: Allocate Your Time</h3>
+                    <p className="text-muted-foreground text-sm">How many hours per day can you dedicate to each area?</p>
+                    {selectedLifeAreas.map(area => (
+                        <div key={area} className="space-y-2">
+                            <Label htmlFor={`time-${area}`} className="flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> {area}</Label>
+                            <Controller
+                                name={`timeBudget.${area}` as any}
+                                control={control}
+                                defaultValue={1}
+                                render={({ field }) => (
+                                    <div className="flex items-center gap-4">
+                                        <Slider
+                                            id={`time-${area}`}
+                                            min={0} max={8} step={0.5}
+                                            defaultValue={[field.value || 1]}
+                                            onValueChange={(value) => field.onChange(value[0])}
+                                        />
+                                        <span className="font-bold text-primary w-24 text-center">{field.value !== undefined ? `${field.value} hr(s)` : `1 hr(s)`}</span>
+                                    </div>
+                                )}
+                            />
+                        </div>
+                    ))}
+                 </div>
+              )}
+
+              {step === 4 && (
+                 <div className="space-y-6 animate-fade-in">
+                    <h3 className="font-bold text-xl">Step 4: Assess Your Power</h3>
                     <p className="text-muted-foreground text-sm">Rate your current level in each stat from 1 to 10.</p>
                     {statOptions.map(stat => (
                         <div key={stat.name} className="space-y-2">
@@ -175,9 +214,9 @@ const Onboarding = () => {
                  </div>
               )}
 
-              {step === 4 && (
+              {step === 5 && (
                 <div className="space-y-4 animate-fade-in">
-                  <h3 className="font-bold text-xl">Step 4: Mission Difficulty</h3>
+                  <h3 className="font-bold text-xl">Step 5: Mission Difficulty</h3>
                   <div>
                     <Label>Choose your preferred task difficulty.</Label>
                      <Controller name="difficultyPreference" control={control} render={({ field }) => (
@@ -197,8 +236,8 @@ const Onboarding = () => {
             <CardFooter className="flex justify-between">
               {step > 1 && <Button type="button" variant="outline" onClick={prevStep}>Back</Button>}
               <div/>
-              {step < 4 && <Button type="button" onClick={nextStep}>Next</Button>}
-              {step === 4 && <Button type="submit">Begin Your Ascent</Button>}
+              {step < 5 && <Button type="button" onClick={nextStep}>Next</Button>}
+              {step === 5 && <Button type="submit">Begin Your Ascent</Button>}
             </CardFooter>
           </form>
         </Card>
@@ -208,4 +247,3 @@ const Onboarding = () => {
 };
 
 export default Onboarding;
-
