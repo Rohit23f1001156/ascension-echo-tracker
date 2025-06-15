@@ -34,9 +34,18 @@ const AnalyticsChart = () => {
         });
 
         return last7Days.map(day => {
-            const questsOnDay = questLog.filter(log => 
-                isSameDay(parseISO(log.date), day)
-            ).length;
+            const questsOnDay = questLog.filter(log => {
+                if (!log.date || typeof log.date !== 'string') {
+                    return false;
+                }
+                try {
+                    return isSameDay(parseISO(log.date), day);
+                } catch (error) {
+                    console.warn('Invalid date format in quest log:', log.date);
+                    return false;
+                }
+            }).length;
+            
             return {
                 date: format(day, 'EEE'),
                 quests: questsOnDay,
@@ -68,7 +77,7 @@ const AnalyticsChart = () => {
                             axisLine={false}
                             tickMargin={8}
                         />
-                         <YAxis
+                        <YAxis
                             tickLine={false}
                             axisLine={false}
                             tickMargin={8}
