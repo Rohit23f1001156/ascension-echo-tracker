@@ -39,16 +39,18 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from "@/components/ui/sonner";
+import { Label } from "@/components/ui/label";
 
 const questFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
-  xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }),
-  duration: z.coerce.number().positive({ message: "Duration must be a positive number." }).optional(),
+  xp: z.coerce.number().int().min(1, { message: "XP must be at least 1." }).max(100, { message: "XP cannot exceed 100." }),
+  duration: z.coerce.number().int().min(1, "Duration must be at least 1 minute.").optional(),
   isBadHabit: z.boolean().default(false),
   difficulty: z.enum(["Easy", "Medium", "Hard"]).default("Easy"),
   recurrence: z.enum(["None", "Daily", "Weekly", "Custom"]).default("None"),
   startDate: z.date().optional(),
   endDate: z.date().optional(),
+  manualXp: z.boolean().default(false),
 }).refine(
   (data) => {
     if (data.recurrence === "Custom") {
@@ -60,6 +62,17 @@ const questFormSchema = z.object({
     message: "Start and end dates are required for custom recurrence.",
     path: ["startDate"],
   }
+).refine(
+    (data) => {
+        if (!data.manualXp) {
+            return data.duration !== undefined && data.duration > 0;
+        }
+        return true;
+    },
+    {
+        message: "Duration is required for automatic XP calculation.",
+        path: ["duration"],
+    }
 );
 
 type AddQuestFormValues = z.infer<typeof questFormSchema>;
@@ -72,17 +85,40 @@ export function AddDailyQuestDialog() {
     resolver: zodResolver(questFormSchema),
     defaultValues: {
       title: "",
-      xp: 10,
+      xp: 1, // Will be calculated
       isBadHabit: false,
       difficulty: "Easy",
       recurrence: "None",
+      duration: 10,
+      manualXp: false,
     },
   });
 
   const recurrence = form.watch("recurrence");
+  const duration = form.watch("duration");
+  const difficulty = form.watch("difficulty");
+  const manualXp = form.watch("manualXp");
+
+  const calculateXp = React.useCallback(() => {
+    if (!duration || !difficulty || duration <= 0) return 1;
+
+    const multipliers = { Easy: 1, Medium: 1.5, Hard: 2 };
+    const baseXP = duration / 5;
+    const multiplier = multipliers[difficulty];
+    const finalXP = Math.floor(baseXP * multiplier);
+
+    return Math.min(Math.max(1, finalXP), 100); // Capped between 1 and 100
+  }, [duration, difficulty]);
+
+  React.useEffect(() => {
+    if (!manualXp) {
+        const calculated = calculateXp();
+        form.setValue("xp", calculated, { shouldValidate: true });
+    }
+  }, [duration, difficulty, manualXp, form, calculateXp]);
 
   function onSubmit(data: AddQuestFormValues) {
-    const { recurrence, startDate, endDate, isBadHabit, ...restOfData } = data;
+    const { recurrence, startDate, endDate, isBadHabit, manualXp, ...restOfData } = data;
 
     const questPayload: any = {
       ...restOfData,
@@ -109,14 +145,14 @@ export function AddDailyQuestDialog() {
       <DialogTrigger asChild>
         <Button>
           <PlusCircle className="mr-2 h-4 w-4" />
-          Add Daily Quest
+          Add Quest
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Add New Quest</DialogTitle>
+          <DialogTitle className="text-3xl font-bold">Add New Quest</DialogTitle>
           <DialogDescription>
-            Add a new task or habit. More difficult or longer tasks yield more XP.
+            Add a new task or habit. XP is calculated based on duration and difficulty.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -137,12 +173,12 @@ export function AddDailyQuestDialog() {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="xp"
+                name="duration"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Base XP</FormLabel>
+                    <FormLabel>Duration (Minutes)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="10" {...field} />
+                      <Input type="number" placeholder="e.g., 30" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -150,40 +186,72 @@ export function AddDailyQuestDialog() {
               />
               <FormField
                 control={form.control}
-                name="duration"
+                name="difficulty"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Duration (Hours)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g., 1.5" {...field} value={field.value ?? ''} />
-                    </FormControl>
+                    <FormLabel>Difficulty</FormLabel>
+                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a difficulty" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Easy">Easy</SelectItem>
+                        <SelectItem value="Medium">Medium</SelectItem>
+                        <SelectItem value="Hard">Hard</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            <FormField
+             <FormField
               control={form.control}
-              name="difficulty"
+              name="manualXp"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Difficulty</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a difficulty" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Easy">Easy</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Manually set XP?</FormLabel>
+                    <FormDescription>
+                      Override automatic XP calculation.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />
+            {manualXp ? (
+              <FormField
+                control={form.control}
+                name="xp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Custom XP</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="10" {...field} />
+                    </FormControl>
+                    <FormDescription>Max 100 XP.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <div className="space-y-2">
+                <Label>Estimated XP</Label>
+                <div className="flex items-center gap-2 text-lg font-semibold text-primary p-3 border rounded-md bg-muted/50">
+                    <span>🧠</span>
+                    <span>{calculateXp()} XP</span>
+                </div>
+                <FormDescription>Calculated based on duration and difficulty. Max 100 XP.</FormDescription>
+              </div>
+            )}
             <FormField
               control={form.control}
               name="recurrence"
