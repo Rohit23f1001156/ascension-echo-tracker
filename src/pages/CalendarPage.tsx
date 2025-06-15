@@ -88,7 +88,7 @@ const CalendarPage = () => {
       </header>
 
       <div className="grid md:grid-cols-2 gap-8 items-start">
-        <Card className="bg-card/80 border-primary/20">
+        <Card className="bg-primary/10 border-primary/20">
           <CardHeader>
             <CardTitle>Progress Calendar</CardTitle>
           </CardHeader>
@@ -97,7 +97,7 @@ const CalendarPage = () => {
               mode="single"
               onDayClick={handleDayClick}
               modifiers={dayModifiers}
-              modifierStyles={modifierStyles}
+              modifiersStyles={modifierStyles}
               className="p-0"
               classNames={{
                 day_today:

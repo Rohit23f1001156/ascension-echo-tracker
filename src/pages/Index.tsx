@@ -1,4 +1,4 @@
-
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   CardHeader,
@@ -43,6 +43,7 @@ import {
 import WeeklySummary from "@/components/WeeklySummary";
 import ShadowTrials from "@/components/ShadowTrials";
 import { supabase } from "@/lib/supabase";
+import AiCompanion from "@/components/AiCompanion";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
@@ -55,8 +56,21 @@ const quickActions = [
   { title: "Settings", icon: Settings, url: "/settings" },
 ];
 
+const motivationalQuotes = [
+  "The shadows fear your persistence.",
+  "Every step forward, no matter how small, is a victory.",
+  "Embrace the struggle, for it is the crucible of heroes.",
+  "Your potential is a blade; sharpen it with every challenge.",
+  "The darkest night is just before the dawn of your greatness."
+];
+
 const Index = () => {
   const { stats: systemStats, levelUpAnimation } = usePlayer();
+  const [quote, setQuote] = useState("");
+
+  useEffect(() => {
+    setQuote(motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)]);
+  }, []);
 
   const handleRestart = () => {
     localStorage.clear();
@@ -87,6 +101,7 @@ const Index = () => {
           <p className="text-muted-foreground mt-2">
             Welcome, {systemStats.name || 'Shadow Hunter'}. Your journey begins.
           </p>
+          {quote && <p className="text-primary/80 italic mt-2 text-sm">"{quote}"</p>}
         </header>
 
         {/* System Stats */}
@@ -192,6 +207,11 @@ const Index = () => {
               </AlertDialogContent>
             </AlertDialog>
           </div>
+        </section>
+
+        {/* AI Companion */}
+        <section className="mb-8 max-w-2xl mx-auto">
+            <AiCompanion />
         </section>
 
         {/* Shadow Trials */}
