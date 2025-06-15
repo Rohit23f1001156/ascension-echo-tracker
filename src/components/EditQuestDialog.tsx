@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,6 +14,17 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Form,
   FormControl,
@@ -33,14 +45,14 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Lock, Unlock } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { usePlayer, Quest } from '@/context/PlayerContext';
 
 const questFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
-  xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }),
+  xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }).max(270, { message: "XP cannot exceed 270." }),
   isBadHabit: z.boolean().default(false),
   isRecurring: z.enum(["none", "daily", "weekly", "custom"]).default("none"),
   difficulty: z.enum(["Easy", "Medium", "Hard"]).default("Easy"),
@@ -66,6 +78,8 @@ interface EditQuestDialogProps {
 export function EditQuestDialog({ quest, children }: EditQuestDialogProps) {
   const { updateQuest } = usePlayer();
   const [open, setOpen] = useState(false);
+  const [isXpEditingEnabled, setIsXpEditingEnabled] = useState(false);
+  const [isDifficultyEditingEnabled, setIsDifficultyEditingEnabled] = useState(false);
 
   const form = useForm<EditQuestFormValues>({
     resolver: zodResolver(questFormSchema),
@@ -93,6 +107,8 @@ export function EditQuestDialog({ quest, children }: EditQuestDialogProps) {
         startDate: quest.startDate ? new Date(quest.startDate) : undefined,
         endDate: quest.endDate ? new Date(quest.endDate) : undefined,
       });
+      setIsXpEditingEnabled(false);
+      setIsDifficultyEditingEnabled(false);
     }
   }, [open, quest, form]);
 
@@ -140,9 +156,30 @@ export function EditQuestDialog({ quest, children }: EditQuestDialogProps) {
                 name="xp"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>XP Value</FormLabel>
+                     <div className="flex items-center justify-between">
+                      <FormLabel>XP Value</FormLabel>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" type="button">
+                            {isXpEditingEnabled ? <Unlock className="w-4 h-4 text-primary" /> : <Lock className="w-4 h-4" />}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Changing XP manually can unbalance the game. Cheating won't make your progress feel rewarding. Do you still want to proceed?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => setIsXpEditingEnabled(true)}>Yes, I understand</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                     <FormControl>
-                      <Input type="number" placeholder="e.g. 20" {...field} />
+                      <Input type="number" placeholder="e.g. 20" {...field} disabled={!isXpEditingEnabled} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -153,8 +190,29 @@ export function EditQuestDialog({ quest, children }: EditQuestDialogProps) {
                 name="difficulty"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Difficulty</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Difficulty</FormLabel>
+                       <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" type="button">
+                           {isDifficultyEditingEnabled ? <Unlock className="w-4 h-4 text-primary" /> : <Lock className="w-4 h-4" />}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Changing the difficulty after creating a quest can affect its intended challenge and reward. Are you sure you want to modify it?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => setIsDifficultyEditingEnabled(true)}>Yes, change it</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isDifficultyEditingEnabled}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select difficulty" />
