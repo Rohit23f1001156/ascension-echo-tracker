@@ -78,3 +78,71 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Live wallpaper styles */
+@keyframes aura-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.3;
+  }
+}
+
+@keyframes flow-border {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.purple-aura-1, .purple-aura-2 {
+  position: fixed;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(138, 43, 226, 0.4) 0%, rgba(138, 43, 226, 0) 70%);
+  animation: aura-pulse 10s infinite ease-in-out;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.purple-aura-1 {
+  width: 80vw;
+  height: 80vh;
+  top: 10vh;
+  left: 10vw;
+}
+
+.purple-aura-2 {
+  width: 60vw;
+  height: 60vh;
+  bottom: 5vh;
+  right: 5vw;
+  animation-delay: -5s;
+}
+
+.blue-flow-border {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+  border: 4px solid transparent;
+  border-radius: 0;
+  background: linear-gradient(45deg, #00ffff, #4a00e0, #8a2be2, #00ffff);
+  background-size: 400% 400%;
+  animation: flow-border 15s ease infinite;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}

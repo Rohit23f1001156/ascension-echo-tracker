@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 // Interfaces
@@ -10,6 +9,8 @@ export interface Quest {
 }
 
 export interface SystemStats {
+  name: string;
+  avatar: string;
   title: string;
   class: string;
   level: number;
@@ -19,15 +20,24 @@ export interface SystemStats {
   stamina: number;
   concentration: number;
   intelligence: number;
+  wealth: number;
   skills: number;
+}
+
+export interface UserProfile {
+  lifeAreas: string[];
+  timeBudget: Record<string, number>;
+  difficultyPreference: 'Easy' | 'Medium' | 'Hard';
 }
 
 interface PlayerContextType {
   stats: SystemStats;
+  profile: UserProfile;
   quests: Quest[];
   completedQuests: Set<string>;
   addQuest: (questData: Omit<Quest, 'id'>) => void;
   toggleQuest: (questId: string) => void;
+  updatePlayerProfile: (stats: Partial<SystemStats>, profile: Partial<UserProfile>) => void;
 }
 
 // Initial Data
@@ -45,16 +55,25 @@ const initialQuestsData: Quest[] = [
 ];
 
 const initialStats: SystemStats = {
+  name: "",
+  avatar: "user",
   title: "Beginner",
   class: "NA",
   level: 0,
   xp: 0,
   xpNextLevel: 1000,
-  strength: 2,
-  stamina: 5,
-  concentration: 1,
-  intelligence: 1,
+  strength: 0,
+  stamina: 0,
+  concentration: 0,
+  intelligence: 0,
+  wealth: 0,
   skills: 1,
+};
+
+const initialProfile: UserProfile = {
+  lifeAreas: [],
+  timeBudget: {},
+  difficultyPreference: 'Medium',
 };
 
 // Create Context
@@ -65,6 +84,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [stats, setStats] = useState<SystemStats>(() => {
     const savedStats = localStorage.getItem('playerStats');
     return savedStats ? JSON.parse(savedStats) : initialStats;
+  });
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    const savedProfile = localStorage.getItem('playerProfile');
+    return savedProfile ? JSON.parse(savedProfile) : initialProfile;
   });
   const [quests, setQuests] = useState<Quest[]>(() => {
     const savedQuests = localStorage.getItem('playerQuests');
@@ -80,6 +103,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   }, [stats]);
 
   useEffect(() => {
+    localStorage.setItem('playerProfile', JSON.stringify(profile));
+  }, [profile]);
+
+  useEffect(() => {
     localStorage.setItem('playerQuests', JSON.stringify(quests));
   }, [quests]);
 
@@ -93,6 +120,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       ...questData,
     };
     setQuests(prev => [...prev, newQuest]);
+  };
+
+  const updatePlayerProfile = (newStats: Partial<SystemStats>, newProfile: Partial<UserProfile>) => {
+    setStats(prev => ({ ...prev, ...newStats }));
+    setProfile(prev => ({ ...prev, ...newProfile }));
+    localStorage.setItem('onboardingComplete', 'true');
   };
 
   const toggleQuest = (questId: string) => {
@@ -118,6 +151,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       let newStamina = prevStats.stamina;
       let newConcentration = prevStats.concentration;
       let newIntelligence = prevStats.intelligence;
+      let newWealth = prevStats.wealth;
       let newSkills = prevStats.skills;
 
       while (newXp >= newXpNextLevel) {
@@ -128,6 +162,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         newStamina += 1;
         newConcentration += 1;
         newIntelligence += 1;
+        newWealth += 1;
         newSkills += 1;
       }
 
@@ -145,12 +180,13 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         stamina: newStamina,
         concentration: newConcentration,
         intelligence: newIntelligence,
+        wealth: newWealth,
         skills: newSkills,
       };
     });
   };
 
-  const value = { stats, quests, completedQuests, addQuest, toggleQuest };
+  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 };
