@@ -372,12 +372,13 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
           id: `custom-${new Date().toISOString()}`,
           description: `A custom quest to master ${data.name}.`,
           isCustom: true,
+          dependencies: [], // Custom nodes don't have dependencies by default
         };
 
         const newNodes = [...newTree[pathIndex].nodes, newSkill];
         
-        // Sort by XP descending
-        newNodes.sort((a, b) => b.xp - a.xp);
+        // Sort by XP ascending - lower XP quests come first.
+        newNodes.sort((a, b) => a.xp - b.xp);
 
         newTree[pathIndex] = {
           ...newTree[pathIndex],
