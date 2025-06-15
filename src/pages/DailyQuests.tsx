@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Flame, Plus, Repeat, Edit, Coins, Calendar as CalendarIcon } from "lucide-react";
+import { ArrowLeft, Flame, Repeat, Edit, Coins, Calendar as CalendarIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -63,39 +63,9 @@ const questFormSchema = z.object({
 type AddQuestFormValues = z.infer<typeof questFormSchema>;
 
 const DailyQuests = () => {
-  const { quests, completedQuests, addQuest, toggleQuest, stats, setConfettiConfig } = usePlayer();
-  const [isAddDialogOpen, setAddDialogOpen] = useState(false);
+  const { quests, completedQuests, toggleQuest, stats, setConfettiConfig } = usePlayer();
   const [allGoodQuestsWereDone, setAllGoodQuestsWereDone] = useState(false);
-
-  const form = useForm<AddQuestFormValues>({
-    resolver: zodResolver(questFormSchema),
-    defaultValues: {
-      title: "",
-      xp: 10,
-      isBadHabit: false,
-      isRecurring: "none",
-      difficulty: "Easy",
-      startDate: undefined,
-      endDate: undefined,
-    },
-  });
   
-  const watchedRecurrence = form.watch("isRecurring");
-
-  function onAddQuest(values: AddQuestFormValues) {
-    addQuest({
-      title: values.title,
-      xp: values.xp,
-      type: values.isBadHabit ? 'bad' : 'good',
-      isRecurring: values.isRecurring === 'none' ? undefined : values.isRecurring,
-      difficulty: values.difficulty,
-      startDate: values.startDate?.toISOString(),
-      endDate: values.endDate?.toISOString(),
-    });
-    form.reset();
-    setAddDialogOpen(false);
-  }
-
   const totalXpPossible = useMemo(() => quests.filter(q => q.type === 'good').reduce((sum, q) => sum + q.xp, 0), [quests]);
   const currentXpEarned = useMemo(() => {
     return quests
@@ -139,6 +109,7 @@ const DailyQuests = () => {
     }
   }, [allGoodQuestsCompleted, allGoodQuestsWereDone, setConfettiConfig]);
 
+
   const xpProgress = totalXpPossible > 0 ? (currentXpEarned / totalXpPossible) * 100 : 0;
 
   return (
@@ -155,209 +126,11 @@ const DailyQuests = () => {
           <span>{stats.coins}</span>
         </div>
       </div>
-      <header className="mb-8 flex justify-between items-start">
+      <header className="mb-8">
         <div>
           <h1 className="text-4xl font-bold">Daily Quests</h1>
           <p className="text-muted-foreground">Complete these tasks to gain XP and level up.</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> Add Quest
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Add New Quest</DialogTitle>
-              <DialogDescription>
-                Define a new task. Make it a recurring habit to build streaks!
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onAddQuest)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quest Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Meditate for 10 minutes" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="xp"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>XP Value</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="e.g. 20" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="difficulty"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Difficulty</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select difficulty" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Easy">Easy</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="Hard">Hard</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="isRecurring"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Recurrence</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select how often this quest repeats" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">Not Recurring</SelectItem>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="custom">Custom</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Set a quest to repeat daily or weekly to build habits.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 {watchedRecurrence === 'custom' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Start Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  {field.value ? (
-                                    format(field.value, "PPP")
-                                  ) : (
-                                    <span>Pick a date</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>End Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  {field.value ? (
-                                    format(field.value, "PPP")
-                                  ) : (
-                                    <span>Pick a date</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
-                <FormField
-                  control={form.control}
-                  name="isBadHabit"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                       <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>This is a bad habit</FormLabel>
-                        <FormDescription>
-                          Check this if completing this quest means you performed a bad habit you want to avoid.
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="submit">Add Quest</Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
       </header>
 
       <Card className="mb-8 bg-card/80 border-primary/20">

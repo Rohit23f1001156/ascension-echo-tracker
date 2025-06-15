@@ -1,10 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { PlusCircle, Coins } from 'lucide-react';
 import { usePlayer } from '@/context/PlayerContext';
 import LevelUpDialog from '@/components/LevelUpDialog';
 import Confetti from 'react-confetti';
 import { Link } from 'react-router-dom';
+import { AddQuestDialog } from '@/components/AddQuestDialog';
 
 const SharedLayout = ({ children }: { children: React.ReactNode }) => {
   const { stats, levelUpData, clearLevelUpData } = usePlayer();
@@ -73,6 +73,9 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
         <div className="container mx-auto px-4 py-8">
           {children}
         </div>
+      </div>
+      <div className="fixed bottom-8 right-8 z-50">
+        <AddQuestDialog />
       </div>
       <LevelUpDialog
         isOpen={!!levelUpData}

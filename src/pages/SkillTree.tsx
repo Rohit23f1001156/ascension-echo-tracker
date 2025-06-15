@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,6 @@ import { ArrowLeft } from "lucide-react";
 import SharedLayout from "@/components/layout/SharedLayout";
 import SkillNodeCard from "@/components/SkillNodeCard";
 import { usePlayer } from "@/context/PlayerContext";
-import { AddQuestDialog } from "@/components/AddQuestDialog";
 
 const SkillTree = () => {
   const { skillTree } = usePlayer();
@@ -21,7 +19,6 @@ const SkillTree = () => {
               Back to Dashboard
             </Link>
           </Button>
-          <AddQuestDialog />
         </div>
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold font-serif">Skill Tree</h1>
