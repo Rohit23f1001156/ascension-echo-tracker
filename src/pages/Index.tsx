@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import {
   CardHeader,
@@ -66,12 +65,6 @@ const Index = () => {
       <span className="font-semibold">{label}</span>
       <span className="font-semibold ml-auto flex items-center gap-1.5">
         {value}
-        {levelUpAnimation && (
-          <span className="flex items-center text-green-400 animate-fade-in font-bold">
-            <ArrowUp size={16} />
-            <span>+1</span>
-          </span>
-        )}
       </span>
     </div>
   );

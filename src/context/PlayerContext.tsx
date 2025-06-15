@@ -7,6 +7,15 @@ export interface Quest {
   title: string;
   xp: number;
   type: 'good' | 'bad';
+  category: 'strength' | 'stamina' | 'concentration' | 'intelligence' | 'wealth' | 'general';
+}
+
+export interface Buff {
+  id: string;
+  description: string;
+  expiry: number; // timestamp
+  stat: 'strength' | 'stamina' | 'concentration' | 'intelligence' | 'wealth';
+  multiplier: number;
 }
 
 export interface SystemStats {
@@ -23,9 +32,10 @@ export interface SystemStats {
   intelligence: number;
   wealth: number;
   skills: number;
-  skillPoints: number;
+  statPointsToAllocate: number;
   streak: number;
   lastActivityDate: string | null;
+  buffs: Buff[];
 }
 
 export interface UserProfile {
@@ -39,27 +49,28 @@ interface PlayerContextType {
   profile: UserProfile;
   quests: Quest[];
   completedQuests: Set<string>;
-  addQuest: (questData: Omit<Quest, 'id'>) => void;
+  addQuest: (questData: Omit<Quest, 'id' | 'category'> & { category?: Quest['category'] }) => void;
   toggleQuest: (questId: string) => void;
   updatePlayerProfile: (stats: Partial<SystemStats>, profile: Partial<UserProfile>) => void;
-  levelUpData: { newLevel: number } | null;
+  levelUpData: { newLevel: number, perk: Buff | null } | null;
   clearLevelUpData: () => void;
   levelUpAnimation: boolean;
   questLog: { questId: string; title: string; xp: number; date: number }[];
+  allocateStatPoint: (stat: 'strength' | 'stamina' | 'concentration' | 'intelligence' | 'wealth') => void;
 }
 
 // Initial Data
 const initialQuestsData: Quest[] = [
-  { id: "water", title: "Drink 8 glasses of water", xp: 40, type: 'good' },
-  { id: "yoga", title: "Yoga", xp: 100, type: 'good' },
-  { id: "morning-routine", title: "Morning Routine (Brush + ice wash + face care)", xp: 100, type: 'good' },
-  { id: "face-yoga", title: "Jawline & Face Yoga", xp: 20, type: 'good' },
-  { id: "brush-twice", title: "Brush teeth twice", xp: 10, type: 'good' },
-  { id: "read", title: "Read / Social Content", xp: 40, type: 'good' },
-  { id: "journal", title: "Journaling", xp: 20, type: 'good' },
-  { id: "workout-pre-breakfast", title: "Sung Jin-Woo mini-workout (pre-breakfast)", xp: 25, type: 'good' },
-  { id: "workout-pre-lunch", title: "Sung Jin-Woo mini-workout (pre-lunch)", xp: 25, type: 'good' },
-  { id: "workout-pre-dinner", title: "Sung Jin-Woo mini-workout (pre-dinner)", xp: 25, type: 'good' },
+  { id: "water", title: "Drink 8 glasses of water", xp: 40, type: 'good', category: 'stamina' },
+  { id: "yoga", title: "Yoga", xp: 100, type: 'good', category: 'stamina' },
+  { id: "morning-routine", title: "Morning Routine (Brush + ice wash + face care)", xp: 100, type: 'good', category: 'stamina' },
+  { id: "face-yoga", title: "Jawline & Face Yoga", xp: 20, type: 'good', category: 'stamina' },
+  { id: "brush-twice", title: "Brush teeth twice", xp: 10, type: 'good', category: 'stamina' },
+  { id: "read", title: "Read / Social Content", xp: 40, type: 'good', category: 'intelligence' },
+  { id: "journal", title: "Journaling", xp: 20, type: 'good', category: 'concentration' },
+  { id: "workout-pre-breakfast", title: "Sung Jin-Woo mini-workout (pre-breakfast)", xp: 25, type: 'good', category: 'strength' },
+  { id: "workout-pre-lunch", title: "Sung Jin-Woo mini-workout (pre-lunch)", xp: 25, type: 'good', category: 'strength' },
+  { id: "workout-pre-dinner", title: "Sung Jin-Woo mini-workout (pre-dinner)", xp: 25, type: 'good', category: 'strength' },
 ];
 
 const initialStats: SystemStats = {
@@ -76,9 +87,10 @@ const initialStats: SystemStats = {
   intelligence: 0,
   wealth: 0,
   skills: 1,
-  skillPoints: 0,
+  statPointsToAllocate: 0,
   streak: 0,
   lastActivityDate: null,
+  buffs: [],
 };
 
 const initialProfile: UserProfile = {
@@ -112,7 +124,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     const savedLog = localStorage.getItem('questLog');
     return savedLog ? JSON.parse(savedLog) : [];
   });
-  const [levelUpData, setLevelUpData] = useState<{ newLevel: number } | null>(null);
+  const [levelUpData, setLevelUpData] = useState<{ newLevel: number, perk: Buff | null } | null>(null);
   const [levelUpAnimation, setLevelUpAnimation] = useState(false);
 
   useEffect(() => {
@@ -135,10 +147,11 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('questLog', JSON.stringify(questLog));
   }, [questLog]);
 
-  const addQuest = (questData: Omit<Quest, 'id'>) => {
+  const addQuest = (questData: Omit<Quest, 'id' | 'category'> & { category?: Quest['category'] }) => {
     const newQuest: Quest = {
       id: new Date().toISOString(),
       ...questData,
+      category: questData.category || 'general',
     };
     setQuests(prev => [...prev, newQuest]);
   };
@@ -151,45 +164,111 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
   const clearLevelUpData = () => setLevelUpData(null);
 
+  const allocateStatPoint = (stat: 'strength' | 'stamina' | 'concentration' | 'intelligence' | 'wealth') => {
+    setStats(prevStats => {
+      if (prevStats.statPointsToAllocate > 0) {
+        toast.success(`Allocated 1 point to ${stat.charAt(0).toUpperCase() + stat.slice(1)}!`);
+        return {
+          ...prevStats,
+          [stat]: prevStats[stat] + 1,
+          statPointsToAllocate: prevStats.statPointsToAllocate - 1,
+        };
+      }
+      return prevStats;
+    });
+  };
+
   const toggleQuest = (questId: string) => {
     const newCompletedSet = new Set(completedQuests);
     const quest = quests.find(q => q.id === questId);
     if (!quest) return;
 
-    let xpChange = 0;
-    if (newCompletedSet.has(questId)) {
-      newCompletedSet.delete(questId);
-      xpChange = quest.type === 'good' ? -quest.xp : quest.xp;
-      // Remove from log
-      setQuestLog(prevLog => {
-        const newLog = [...prevLog];
-        const lastIndex = newLog.map(item => item.questId).lastIndexOf(questId);
-        if (lastIndex > -1) {
-          newLog.splice(lastIndex, 1);
-          return newLog;
-        }
-        return prevLog;
-      });
-    } else {
-      newCompletedSet.add(questId);
-      xpChange = quest.type === 'good' ? quest.xp : -quest.xp;
-      // Add to log
-      setQuestLog(prevLog => [...prevLog, { questId: quest.id, title: quest.title, xp: quest.xp, date: Date.now() }]);
-    }
-    setCompletedQuests(newCompletedSet);
-
     setStats(prevStats => {
+      // Apply multipliers for completing a quest
+      let finalXp = quest.xp;
+      if (!newCompletedSet.has(questId) && quest.type === 'good') {
+        const statMultiplier = 0.05; // 5% bonus per stat point
+        const statBonus = (statValue: number) => statValue * statMultiplier;
+        
+        const categoryToStatMap = {
+          strength: 'strength',
+          stamina: 'stamina',
+          concentration: 'concentration',
+          intelligence: 'intelligence',
+          wealth: 'wealth'
+        };
+        const statToBoost = categoryToStatMap[quest.category];
+
+        if (statToBoost) {
+          finalXp *= (1 + statBonus(prevStats[statToBoost]));
+        }
+
+        // Apply buffs
+        const now = Date.now();
+        const activeBuffs = prevStats.buffs.filter(b => b.expiry > now);
+        const relevantBuff = activeBuffs.find(b => b.stat === quest.category);
+        if (relevantBuff) {
+          finalXp *= relevantBuff.multiplier;
+          toast.info(`Perk Activated: ${relevantBuff.description}`);
+        }
+        finalXp = Math.round(finalXp);
+      }
+
+      let xpChange = 0;
+      if (newCompletedSet.has(questId)) {
+        newCompletedSet.delete(questId);
+        xpChange = quest.type === 'good' ? -quest.xp : quest.xp; // Revert base XP on undo
+        setQuestLog(prevLog => {
+          const newLog = [...prevLog];
+          const lastIndex = newLog.map(item => item.questId).lastIndexOf(questId);
+          if (lastIndex > -1) {
+            newLog.splice(lastIndex, 1);
+            return newLog;
+          }
+          return prevLog;
+        });
+      } else {
+        newCompletedSet.add(questId);
+        xpChange = quest.type === 'good' ? finalXp : -finalXp;
+        setQuestLog(prevLog => [...prevLog, { questId: quest.id, title: quest.title, xp: finalXp, date: Date.now() }]);
+      }
+      setCompletedQuests(newCompletedSet);
+      
       let newXp = prevStats.xp + xpChange;
       let newLevel = prevStats.level;
       let newXpNextLevel = prevStats.xpNextLevel;
-      let newStrength = prevStats.strength;
-      let newStamina = prevStats.stamina;
-      let newConcentration = prevStats.concentration;
-      let newIntelligence = prevStats.intelligence;
-      let newWealth = prevStats.wealth;
-      let newSkills = prevStats.skills;
-      let newSkillPoints = prevStats.skillPoints;
+      let newStatPointsToAllocate = prevStats.statPointsToAllocate;
       let leveledUp = false;
+      let awardedPerk: Buff | null = null;
+      
+      const now = Date.now();
+      let newBuffs = prevStats.buffs.filter(b => b.expiry > now);
+
+      while (newXp >= newXpNextLevel) {
+        leveledUp = true;
+        newLevel++;
+        newXp -= newXpNextLevel;
+        newXpNextLevel = 1000 + newLevel * 500; // New XP formula
+        newStatPointsToAllocate += 1;
+      }
+
+      if (leveledUp) {
+        const possiblePerks: Omit<Buff, 'id' | 'expiry'>[] = [
+          { stat: 'concentration', description: "+10% Concentration XP for 24h", multiplier: 1.10 },
+          { stat: 'intelligence', description: "+10% Intelligence XP for 24h", multiplier: 1.10 },
+          { stat: 'strength', description: "+10% Strength XP for 24h", multiplier: 1.10 },
+        ];
+        const randomPerk = possiblePerks[Math.floor(Math.random() * possiblePerks.length)];
+        awardedPerk = {
+          ...randomPerk,
+          id: new Date().toISOString(),
+          expiry: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+        };
+        newBuffs.push(awardedPerk);
+        setLevelUpData({ newLevel, perk: awardedPerk });
+        setLevelUpAnimation(true);
+        setTimeout(() => setLevelUpAnimation(false), 3000);
+      }
 
       // Streak logic
       const today = new Date().toISOString().split('T')[0];
@@ -208,28 +287,6 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
           }
       }
 
-      while (newXp >= newXpNextLevel) {
-        leveledUp = true;
-        newLevel++;
-        newXp -= newXpNextLevel;
-        newXpNextLevel = Math.floor(newXpNextLevel * 1.5);
-        newStrength += 1;
-        newStamina += 1;
-        newConcentration += 1;
-        newIntelligence += 1;
-        newWealth += 1;
-        newSkills += 1;
-        newSkillPoints += 2; // Formula: +2 skill points per level
-      }
-
-      if (leveledUp) {
-        setLevelUpData({ newLevel });
-        setLevelUpAnimation(true);
-        setTimeout(() => {
-          setLevelUpAnimation(false);
-        }, 3000);
-      }
-
       const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];
       const titleIndex = Math.min(Math.floor(newLevel / 10), titles.length - 1);
       const newTitle = titles[titleIndex];
@@ -240,20 +297,21 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         xp: Math.max(0, newXp),
         xpNextLevel: newXpNextLevel,
         title: newTitle,
-        strength: newStrength,
-        stamina: newStamina,
-        concentration: newConcentration,
-        intelligence: newIntelligence,
-        wealth: newWealth,
-        skills: newSkills,
-        skillPoints: newSkillPoints,
+        strength: prevStats.strength,
+        stamina: prevStats.stamina,
+        concentration: prevStats.concentration,
+        intelligence: prevStats.intelligence,
+        wealth: prevStats.wealth,
+        skills: prevStats.skills,
+        statPointsToAllocate: newStatPointsToAllocate,
         streak: newStreak,
         lastActivityDate: newLastActivityDate,
+        buffs: newBuffs,
       };
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog };
+  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 };

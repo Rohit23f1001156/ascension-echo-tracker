@@ -8,11 +8,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Buff } from "@/context/PlayerContext";
+import { Link } from "react-router-dom";
 
 interface LevelUpDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  levelUpInfo: { newLevel: number } | null;
+  levelUpInfo: { newLevel: number; perk: Buff | null } | null;
 }
 
 const LevelUpDialog = ({ isOpen, onClose, levelUpInfo }: LevelUpDialogProps) => {
@@ -31,12 +33,18 @@ const LevelUpDialog = ({ isOpen, onClose, levelUpInfo }: LevelUpDialogProps) => 
         </DialogHeader>
         <div className="my-4 text-center space-y-2 text-base">
           <p className="font-semibold text-primary">Gained:</p>
-          <p className="text-muted-foreground">+1 Strength, +1 Stamina, +1 Intelligence, +1 Concentration, +1 Wealth, +1 Skills, +2 Skill Points</p>
-          <p className="font-semibold text-primary mt-4">Perks Unlocked:</p>
-          <p className="text-muted-foreground">✨ Momentum Boost (2-day streak!)</p>
+          <p className="text-muted-foreground">+1 Stat Point to allocate!</p>
+          {levelUpInfo.perk && (
+            <>
+              <p className="font-semibold text-primary mt-4">Perk Unlocked:</p>
+              <p className="text-muted-foreground">✨ {levelUpInfo.perk.description}</p>
+            </>
+          )}
         </div>
         <DialogFooter className="sm:justify-center">
-          <Button onClick={onClose} className="px-8">Continue</Button>
+          <Button asChild onClick={onClose} className="px-8">
+            <Link to="/stats">Allocate Point</Link>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

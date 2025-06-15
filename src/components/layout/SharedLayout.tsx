@@ -1,9 +1,10 @@
 
 import React, { useEffect, useState } from 'react';
-import { Star } from 'lucide-react';
+import { PlusCircle } from 'lucide-react';
 import { usePlayer } from '@/context/PlayerContext';
 import LevelUpDialog from '@/components/LevelUpDialog';
 import Confetti from 'react-confetti';
+import { Link } from 'react-router-dom';
 
 const SharedLayout = ({ children }: { children: React.ReactNode }) => {
   const { stats, levelUpData, clearLevelUpData } = usePlayer();
@@ -54,10 +55,14 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="blue-flow-border"></div>
       
       <div className="min-h-screen bg-black/70 backdrop-blur-sm relative z-10">
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-background/50 border border-primary/30 shadow-lg p-2 rounded-lg text-foreground">
-          <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-          <span className="font-bold text-lg">{stats.skillPoints}</span>
-        </div>
+        {stats.statPointsToAllocate > 0 && (
+          <Link to="/stats" className="absolute top-4 right-4 z-20">
+            <div className="flex items-center gap-2 bg-primary/80 border border-primary/30 shadow-lg p-2 rounded-lg text-primary-foreground animate-pulse-strong cursor-pointer hover:bg-primary">
+              <PlusCircle className="w-5 h-5" />
+              <span className="font-bold text-lg">{stats.statPointsToAllocate}</span>
+            </div>
+          </Link>
+        )}
         <div className="container mx-auto px-4 py-8">
           {children}
         </div>
