@@ -102,13 +102,13 @@ const Onboarding = () => {
         <Card className="w-full max-w-2xl bg-card/80 border-primary/20">
           <form onSubmit={handleSubmit(onSubmit)}>
             <CardHeader>
-              <CardTitle className="text-3xl text-primary">Arise, Shadow!</CardTitle>
+              <CardTitle className="text-3xl text-primary font-serif">Arise, Shadow!</CardTitle>
               <CardDescription>Let's set up your profile to begin the journey.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {step === 1 && (
                 <div className="space-y-4 animate-fade-in">
-                  <h3 className="font-bold text-xl">Step 1: Your Identity</h3>
+                  <h3 className="font-bold text-xl font-serif">Step 1: Your Identity</h3>
                   <div>
                     <Label htmlFor="name">What is your name, hunter?</Label>
                     <Controller name="name" control={control} render={({ field, fieldState }) => (
@@ -138,7 +138,7 @@ const Onboarding = () => {
 
               {step === 2 && (
                 <div className="space-y-4 animate-fade-in">
-                  <h3 className="font-bold text-xl">Step 2: Areas to Conquer</h3>
+                  <h3 className="font-bold text-xl font-serif">Step 2: Areas to Conquer</h3>
                   <div>
                     <Label>Which life areas do you want to level up?</Label>
                     <Controller name="lifeAreas" control={control} render={({ field, fieldState }) => (
@@ -166,7 +166,7 @@ const Onboarding = () => {
 
               {step === 3 && (
                  <div className="space-y-6 animate-fade-in">
-                    <h3 className="font-bold text-xl">Step 3: Allocate Your Time</h3>
+                    <h3 className="font-bold text-xl font-serif">Step 3: Allocate Your Time</h3>
                     <p className="text-muted-foreground text-sm">How many hours per day can you dedicate to each area?</p>
                     {selectedLifeAreas.map(area => (
                         <div key={area} className="space-y-2">
@@ -194,7 +194,7 @@ const Onboarding = () => {
 
               {step === 4 && (
                  <div className="space-y-6 animate-fade-in">
-                    <h3 className="font-bold text-xl">Step 4: Assess Your Power</h3>
+                    <h3 className="font-bold text-xl font-serif">Step 4: Assess Your Power</h3>
                     <p className="text-muted-foreground text-sm">Rate your current level in each stat from 1 to 10.</p>
                     {statOptions.map(stat => (
                         <div key={stat.name} className="space-y-2">
@@ -216,7 +216,7 @@ const Onboarding = () => {
 
               {step === 5 && (
                 <div className="space-y-4 animate-fade-in">
-                  <h3 className="font-bold text-xl">Step 5: Mission Difficulty</h3>
+                  <h3 className="font-bold text-xl font-serif">Step 5: Mission Difficulty</h3>
                   <div>
                     <Label>Choose your preferred task difficulty.</Label>
                      <Controller name="difficultyPreference" control={control} render={({ field }) => (
