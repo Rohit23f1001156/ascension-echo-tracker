@@ -16,53 +16,75 @@ import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import { PlayerProvider, usePlayer } from "./context/PlayerContext";
 import CustomTasks from "./pages/CustomTasks";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <PlayerProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
-    </PlayerProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <PlayerProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <AppRoutes />
+          </TooltipProvider>
+        </PlayerProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 );
 
 const AppRoutes = () => {
+  const { session, loading } = useAuth();
   const { stats } = usePlayer();
   const onboardingComplete = localStorage.getItem("onboardingComplete") === "true" && stats.name;
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <Routes>
-      {onboardingComplete ? (
-        <>
-          <Route path="/" element={<Index />} />
-          <Route path="/daily-quests" element={<DailyQuests />} />
-          <Route path="/skill-tree" element={<SkillTree />} />
-          <Route path="/stats" element={<Stats />} />
-          <Route path="/journal" element={<Journal />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/boss-fights" element={<BossFights />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/custom-tasks" element={<CustomTasks />} />
-          <Route path="/onboarding" element={<Navigate to="/" />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </>
+      {session ? (
+        onboardingComplete ? (
+          <>
+            <Route path="/" element={<Index />} />
+            <Route path="/daily-quests" element={<DailyQuests />} />
+            <Route path="/skill-tree" element={<SkillTree />} />
+            <Route path="/stats" element={<Stats />} />
+            <Route path="/journal" element={<Journal />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/boss-fights" element={<BossFights />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/custom-tasks" element={<CustomTasks />} />
+            <Route path="/onboarding" element={<Navigate to="/" />} />
+            <Route path="/login" element={<Navigate to="/" />} />
+            <Route path="/signup" element={<Navigate to="/" />} />
+            <Route path="*" element={<NotFound />} />
+          </>
+        ) : (
+          <>
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="*" element={<Navigate to="/onboarding" />} />
+          </>
+        )
       ) : (
         <>
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="*" element={<Navigate to="/onboarding" />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="*" element={<Navigate to="/login" />} />
         </>
       )}
     </Routes>
   );
 };
-
 
 export default App;

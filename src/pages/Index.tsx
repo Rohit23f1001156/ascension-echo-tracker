@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import {
   CardHeader,
@@ -22,6 +23,7 @@ import {
   RotateCcw,
   ArrowUp,
   PenSquare,
+  LogOut,
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import SharedLayout from "@/components/layout/SharedLayout";
@@ -40,6 +42,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import WeeklySummary from "@/components/WeeklySummary";
 import ShadowTrials from "@/components/ShadowTrials";
+import { supabase } from "@/lib/supabase";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
@@ -58,6 +61,10 @@ const Index = () => {
   const handleRestart = () => {
     localStorage.clear();
     window.location.reload();
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
   };
 
   const StatItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: number | string }) => (
@@ -164,6 +171,23 @@ const Index = () => {
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={handleRestart}>Yes, Restart</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <SystemCard title="Logout" icon={LogOut} />
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You will be returned to the login page.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleLogout}>Yes, Logout</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
