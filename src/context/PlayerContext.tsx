@@ -377,8 +377,38 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
         const newNodes = [...newTree[pathIndex].nodes, newSkill];
         
-        // Sort by XP ascending - lower XP quests come first.
-        newNodes.sort((a, b) => a.xp - b.xp);
+        // Sort by XP ascending. For ties, original nodes come before custom ones.
+        // If both are custom, sort by creation date.
+        newNodes.sort((a, b) => {
+          // 1. Primary sort by XP (ascending)
+          if (a.xp !== b.xp) {
+            return a.xp - b.xp;
+          }
+
+          // 2. Secondary sort for tie-breaking
+          const aIsOriginal = !a.isCustom;
+          const bIsOriginal = !b.isCustom;
+
+          // An original node always comes before a custom node
+          if (aIsOriginal && !bIsOriginal) return -1;
+          if (!aIsOriginal && bIsOriginal) return 1;
+
+          // If both are custom, sort by creation date (from ID)
+          if (!aIsOriginal && !bIsOriginal) {
+             try {
+                // ID is 'custom-ISO_STRING'
+                const dateA = new Date(a.id.substring(7));
+                const dateB = new Date(b.id.substring(7));
+                if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+                    return dateA.getTime() - dateB.getTime(); // older first
+                }
+             } catch (e) { /* ignore, fallback to id compare */ }
+          }
+          
+          // For two original nodes or two custom nodes where date parsing fails,
+          // maintain a consistent order using ID.
+          return a.id.localeCompare(b.id);
+        });
 
         newTree[pathIndex] = {
           ...newTree[pathIndex],
