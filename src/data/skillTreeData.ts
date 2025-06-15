@@ -1,4 +1,3 @@
-
 export interface SkillNode {
   id: string;
   name: string;
@@ -6,6 +5,8 @@ export interface SkillNode {
   tasks: string[];
   xp: number;
   dependencies?: string[];
+  difficulty?: 'Easy' | 'Medium' | 'Hard';
+  isCustom?: boolean;
 }
 
 export interface SkillPath {

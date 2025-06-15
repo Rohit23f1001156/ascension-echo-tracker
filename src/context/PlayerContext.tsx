@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from '@/components/ui/sonner';
-import { skillTreeData } from '@/data/skillTreeData';
+import { skillTreeData as initialSkillTreeData, SkillPath, SkillNode } from '@/data/skillTreeData';
 
 // Interfaces
 export interface Quest {
@@ -63,6 +63,8 @@ interface PlayerContextType {
   startSkillQuest: (skillId: string) => void;
   cancelSkillQuest: (skillId: string) => void;
   toggleSkillTask: (skillId: string, task: string) => void;
+  skillTree: SkillPath[];
+  addSkillNode: (data: Omit<SkillNode, 'id' | 'description' | 'dependencies' | 'isCustom'> & { pathId: string }) => void;
 }
 
 // Initial Data
@@ -154,7 +156,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [levelUpAnimation, setLevelUpAnimation] = useState(false);
   const [masteredSkills, setMasteredSkills] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('masteredSkills');
-    return saved ? new Set(JSON.parse(saved)) : new Set(['c1', 'l1', 'f1', 'h1', 'h4']);
+    return saved ? new Set(JSON.parse(saved)) : new Set();
   });
   const [activeSkillQuests, setActiveSkillQuests] = useState<Map<string, Set<string>>>(() => {
     const saved = localStorage.getItem('activeSkillQuests');
@@ -170,6 +172,19 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         }
     }
     return new Map();
+  });
+
+  const [skillTree, setSkillTree] = useState<SkillPath[]>(() => {
+    const saved = localStorage.getItem('skillTree');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse skillTree from localStorage", e);
+        return initialSkillTreeData;
+      }
+    }
+    return initialSkillTreeData;
   });
 
   useEffect(() => {
@@ -203,6 +218,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     localStorage.setItem('masteredSkills', JSON.stringify(Array.from(masteredSkills)));
   }, [masteredSkills]);
+
+  useEffect(() => {
+    localStorage.setItem('skillTree', JSON.stringify(skillTree));
+  }, [skillTree]);
 
   const addQuest = (questData: Omit<Quest, 'id' | 'category'> & { category?: Quest['category'] }) => {
     const newQuest: Quest = {
@@ -342,6 +361,37 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const addSkillNode = (data: Omit<SkillNode, 'id' | 'description' | 'dependencies' | 'isCustom'> & { pathId: string }) => {
+    setSkillTree(prevTree => {
+      const newTree = JSON.parse(JSON.stringify(prevTree)); // Deep copy
+      const pathIndex = newTree.findIndex((p: SkillPath) => p.id === data.pathId);
+
+      if (pathIndex > -1) {
+        const newSkill: SkillNode = {
+          ...data,
+          id: `custom-${new Date().toISOString()}`,
+          description: `A custom quest to master ${data.name}.`,
+          isCustom: true,
+        };
+
+        const newNodes = [...newTree[pathIndex].nodes, newSkill];
+        
+        // Sort by XP descending
+        newNodes.sort((a, b) => b.xp - a.xp);
+
+        newTree[pathIndex] = {
+          ...newTree[pathIndex],
+          nodes: newNodes,
+        };
+
+        toast.success("New quest added successfully!");
+      } else {
+        toast.error("Could not find the selected skill path.");
+      }
+      return newTree;
+    });
+  };
+
   const toggleQuest = (questId: string) => {
     const newCompletedSet = new Set(completedQuests);
     const quest = quests.find(q => q.id === questId);
@@ -475,7 +525,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask };
+  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 };

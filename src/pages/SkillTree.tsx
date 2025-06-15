@@ -4,21 +4,25 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import SharedLayout from "@/components/layout/SharedLayout";
-import { skillTreeData } from "@/data/skillTreeData";
 import SkillNodeCard from "@/components/SkillNodeCard";
+import { usePlayer } from "@/context/PlayerContext";
+import { AddQuestDialog } from "@/components/AddQuestDialog";
 
 const SkillTree = () => {
-  // Unlocked skills state is now managed in PlayerContext, so we don't need it here.
+  const { skillTree } = usePlayer();
 
   return (
     <SharedLayout>
       <div className="w-full max-w-7xl mx-auto">
-        <Button asChild variant="outline" className="mb-8">
-          <Link to="/">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Link>
-        </Button>
+        <div className="flex justify-between items-center mb-8">
+          <Button asChild variant="outline">
+            <Link to="/">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Link>
+          </Button>
+          <AddQuestDialog />
+        </div>
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold font-serif">Skill Tree</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
@@ -27,7 +31,7 @@ const SkillTree = () => {
         </div>
 
         <div className="space-y-12">
-          {skillTreeData.map((path) => (
+          {skillTree.map((path) => (
             <div key={path.id}>
               <h2 className="text-3xl font-bold mb-2 font-serif text-primary">{path.name}</h2>
               <p className="text-muted-foreground mb-6">{path.description}</p>
