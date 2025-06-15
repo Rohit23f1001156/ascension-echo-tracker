@@ -16,6 +16,11 @@ import {
   Swords,
   BarChart3,
   Shield,
+  ChevronsUp,
+  Heart,
+  Crosshair,
+  Brain,
+  Star,
 } from "lucide-react";
 
 const quickActions = [
@@ -66,50 +71,73 @@ const Index = () => {
 
           {/* System Stats */}
           <section className="mb-8">
-            <Card className="bg-card/80 border-primary/20 text-left max-w-md mx-auto">
+            <Card className="bg-card/80 border-primary/20 max-w-2xl mx-auto">
               <CardHeader>
-                <CardTitle className="text-2xl font-bold text-center">System</CardTitle>
-                <CardDescription className="text-center">Player Status</CardDescription>
+                <CardTitle className="text-2xl font-bold text-center tracking-widest uppercase">Status</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 pt-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Title</span>
-                  <span className="font-semibold">{systemStats.title}</span>
+              <CardContent className="pt-2">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                  {/* Level */}
+                  <div className="text-center flex-shrink-0">
+                    <p className="text-7xl font-bold text-primary">{systemStats.level}</p>
+                    <p className="text-muted-foreground tracking-widest">LEVEL</p>
+                  </div>
+
+                  {/* Right side info */}
+                  <div className="flex-1 w-full space-y-4">
+                    {/* Job & Title */}
+                    <div className="grid grid-cols-2 gap-4 text-center sm:text-left">
+                      <div>
+                        <p className="text-sm text-muted-foreground">CLASS</p>
+                        <p className="font-semibold">{systemStats.class}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">TITLE</p>
+                        <p className="font-semibold">{systemStats.title}</p>
+                      </div>
+                    </div>
+
+                    {/* XP Bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">XP</span>
+                        <span className="font-mono text-xs">{systemStats.xp} / {systemStats.xpNextLevel}</span>
+                      </div>
+                      <Progress value={(systemStats.xp / systemStats.xpNextLevel) * 100} className="h-2" />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Class</span>
-                  <span className="font-semibold">{systemStats.class}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Level</span>
-                  <span className="font-semibold">{systemStats.level}</span>
-                </div>
-                <div className="space-y-1">
-                   <div className="flex justify-between items-center text-sm">
-                     <span className="text-muted-foreground">XP</span>
-                     <span className="font-mono text-xs">{systemStats.xp} / {systemStats.xpNextLevel}</span>
-                   </div>
-                   <Progress value={(systemStats.xp / systemStats.xpNextLevel) * 100} className="h-2" />
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Strength</span>
-                  <span className="font-semibold">{systemStats.strength}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Stamina</span>
-                  <span className="font-semibold">{systemStats.stamina}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Concentration</span>
-                  <span className="font-semibold">{systemStats.concentration}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Intelligence</span>
-                  <span className="font-semibold">{systemStats.intelligence}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Skills</span>
-                  <span className="font-semibold">{systemStats.skills}</span>
+
+                {/* Divider */}
+                <div className="my-6 border-t border-primary/20"></div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                  <div className="flex items-center gap-3">
+                    <ChevronsUp className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Strength</span>
+                    <span className="font-semibold ml-auto">{systemStats.strength}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Heart className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Stamina</span>
+                    <span className="font-semibold ml-auto">{systemStats.stamina}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Crosshair className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Concentration</span>
+                    <span className="font-semibold ml-auto">{systemStats.concentration}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Brain className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Intelligence</span>
+                    <span className="font-semibold ml-auto">{systemStats.intelligence}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Star className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Skills</span>
+                    <span className="font-semibold ml-auto">{systemStats.skills}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
