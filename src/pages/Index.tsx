@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -28,6 +29,19 @@ const quickActions = [
 ];
 
 const Index = () => {
+  const systemStats = {
+    title: "Beginner",
+    class: "NA",
+    level: 0,
+    xp: 0,
+    xpNextLevel: 1000,
+    strength: 2,
+    stamina: 5,
+    concentration: 1,
+    intelligence: 1,
+    skills: 1,
+  };
+
   return (
     <div
       className="min-h-screen bg-background text-foreground"
@@ -50,19 +64,53 @@ const Index = () => {
             </p>
           </header>
 
-          {/* Hero Banner */}
+          {/* System Stats */}
           <section className="mb-8">
-            <Card className="bg-card/80 border-primary/20">
+            <Card className="bg-card/80 border-primary/20 text-left max-w-md mx-auto">
               <CardHeader>
-                <CardTitle className="text-3xl font-bold">Level 1</CardTitle>
-                <CardDescription>Sung Jin-Woo</CardDescription>
+                <CardTitle className="text-2xl font-bold text-center">System</CardTitle>
+                <CardDescription className="text-center">Player Status</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-bold">XP</span>
-                  <Progress value={25} className="h-4" />
+              <CardContent className="space-y-3 pt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Title</span>
+                  <span className="font-semibold">{systemStats.title}</span>
                 </div>
-                <p className="text-right text-sm text-muted-foreground mt-1">250 / 1000 XP</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Class</span>
+                  <span className="font-semibold">{systemStats.class}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Level</span>
+                  <span className="font-semibold">{systemStats.level}</span>
+                </div>
+                <div className="space-y-1">
+                   <div className="flex justify-between items-center text-sm">
+                     <span className="text-muted-foreground">XP</span>
+                     <span className="font-mono text-xs">{systemStats.xp} / {systemStats.xpNextLevel}</span>
+                   </div>
+                   <Progress value={(systemStats.xp / systemStats.xpNextLevel) * 100} className="h-2" />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Strength</span>
+                  <span className="font-semibold">{systemStats.strength}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Stamina</span>
+                  <span className="font-semibold">{systemStats.stamina}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Concentration</span>
+                  <span className="font-semibold">{systemStats.concentration}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Intelligence</span>
+                  <span className="font-semibold">{systemStats.intelligence}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Skills</span>
+                  <span className="font-semibold">{systemStats.skills}</span>
+                </div>
               </CardContent>
             </Card>
           </section>
