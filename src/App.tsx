@@ -25,42 +25,42 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <AppRouter />
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
       </TooltipProvider>
     </PlayerProvider>
   </QueryClientProvider>
 );
 
-const AppRouter = () => {
+const AppRoutes = () => {
   const { stats } = usePlayer();
   const onboardingComplete = localStorage.getItem("onboardingComplete") === "true" && stats.name;
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {onboardingComplete ? (
-          <>
-            <Route path="/" element={<Index />} />
-            <Route path="/daily-quests" element={<DailyQuests />} />
-            <Route path="/skill-tree" element={<SkillTree />} />
-            <Route path="/stats" element={<Stats />} />
-            <Route path="/journal" element={<Journal />} />
-            <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/boss-fights" element={<BossFights />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/custom-tasks" element={<CustomTasks />} />
-            <Route path="/onboarding" element={<Navigate to="/" />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </>
-        ) : (
-          <>
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="*" element={<Navigate to="/onboarding" />} />
-          </>
-        )}
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      {onboardingComplete ? (
+        <>
+          <Route path="/" element={<Index />} />
+          <Route path="/daily-quests" element={<DailyQuests />} />
+          <Route path="/skill-tree" element={<SkillTree />} />
+          <Route path="/stats" element={<Stats />} />
+          <Route path="/journal" element={<Journal />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/boss-fights" element={<BossFights />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/custom-tasks" element={<CustomTasks />} />
+          <Route path="/onboarding" element={<Navigate to="/" />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </>
+      ) : (
+        <>
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="*" element={<Navigate to="/onboarding" />} />
+        </>
+      )}
+    </Routes>
   );
 };
 
