@@ -95,6 +95,38 @@
   .animate-pulse-border {
     animation: pulse-border 2s infinite;
   }
+
+  .animate-mastery {
+    overflow: hidden; /* To contain the burst within card boundaries */
+  }
+  .animate-mastery::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200%; /* large to cover the card */
+    height: 200%;
+    background-image: radial-gradient(circle, hsl(var(--primary) / 0.6) 10%, transparent 40%),
+                      radial-gradient(circle at 80% 20%, hsl(var(--primary) / 0.4) 5%, transparent 20%),
+                      radial-gradient(circle at 20% 80%, hsl(var(--primary) / 0.5) 8%, transparent 30%);
+    background-position: center center;
+    background-repeat: no-repeat;
+    transform: translate(-50%, -50%) scale(0);
+    animation: mastery-burst 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  @keyframes mastery-burst {
+    from {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 1;
+    }
+    to {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 0;
+    }
+  }
 }
 
 

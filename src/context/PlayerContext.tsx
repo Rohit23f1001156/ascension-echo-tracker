@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { skillTreeData as initialSkillTreeData, SkillPath, SkillNode } from '@/data/skillTreeData';
+import ReactConfetti from 'react-confetti';
 
 // Interfaces
 export interface Quest {
@@ -67,6 +68,7 @@ interface PlayerContextType {
   addSkillNode: (data: Omit<SkillNode, 'id' | 'description' | 'dependencies' | 'isCustom'> & { pathId: string }) => void;
   updateSkillNode: (pathId: string, skillId: string, data: Partial<Pick<SkillNode, 'name' | 'description' | 'xp' | 'tasks'>>) => void;
   deleteSkillNode: (pathId: string, skillId: string) => void;
+  justMasteredSkillId: string | null;
 }
 
 // A new reusable sorting function
@@ -211,6 +213,8 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     }
     return new Map();
   });
+  const [confettiConfig, setConfettiConfig] = useState<{ recycle: boolean, numberOfPieces: number } | null>(null);
+  const [justMasteredSkillId, setJustMasteredSkillId] = useState<string | null>(null);
 
   const [skillTree, setSkillTree] = useState<SkillPath[]>(() => {
     const saved = localStorage.getItem('skillTree');
@@ -301,6 +305,9 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const masterSkill = (skillId: string, skillXp: number) => {
+    const skillNode = skillTree.flatMap(p => p.nodes).find(n => n.id === skillId);
+    if (!skillNode) return;
+
     setMasteredSkills(prev => new Set(prev).add(skillId));
     setActiveSkillQuests(prev => {
         const newActiveQuests = new Map(prev);
@@ -308,7 +315,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         return newActiveQuests;
     });
     
-    toast.success(`Skill Mastered! You earned ${skillXp} XP!`);
+    toast.success(`Skill Mastered: ${skillNode.name}!`, {
+      description: `You earned ${skillXp} XP!`,
+    });
+    setConfettiConfig({ recycle: false, numberOfPieces: 400 });
+    setTimeout(() => setConfettiConfig(null), 5000);
+
+    setJustMasteredSkillId(skillId);
+    setTimeout(() => setJustMasteredSkillId(null), 1200);
 
     setStats(prevStats => {
        let newXp = prevStats.xp + skillXp;
@@ -389,16 +403,23 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     setActiveSkillQuests(prev => {
         const newActiveQuests = new Map(prev);
         const completedTasks = new Set(newActiveQuests.get(skillId));
+        
+        const skillNode = skillTree.flatMap(p => p.nodes).find(n => n.id === skillId);
+        if (!skillNode) return prev;
 
         if(completedTasks.has(task)) {
             completedTasks.delete(task);
         } else {
+            if (completedTasks.size < skillNode.tasks.length - 1) {
+              toast.success(`Task complete: ${task}`);
+              setConfettiConfig({ recycle: false, numberOfPieces: 150 });
+              setTimeout(() => setConfettiConfig(null), 3000);
+            }
             completedTasks.add(task);
         }
 
         newActiveQuests.set(skillId, completedTasks);
 
-        const skillNode = skillTree.flatMap(p => p.nodes).find(n => n.id === skillId);
         if (skillNode && completedTasks.size === skillNode.tasks.length) {
             masterSkill(skillId, skillNode.xp);
         }
@@ -617,9 +638,22 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode };
+  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId };
 
-  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
+  return (
+    <PlayerContext.Provider value={value}>
+      {confettiConfig && (
+        <ReactConfetti
+          width={window.innerWidth}
+          height={window.innerHeight}
+          recycle={confettiConfig.recycle}
+          numberOfPieces={confettiConfig.numberOfPieces}
+          className="!fixed"
+        />
+      )}
+      {children}
+    </PlayerContext.Provider>
+  );
 };
 
 // Custom Hook

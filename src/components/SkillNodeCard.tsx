@@ -34,10 +34,12 @@ const SkillNodeCard = ({ node, pathNodes, pathId }: SkillNodeCardProps) => {
     startSkillQuest, 
     cancelSkillQuest, 
     toggleSkillTask,
-    deleteSkillNode
+    deleteSkillNode,
+    justMasteredSkillId
   } = usePlayer();
 
   const isMastered = masteredSkills.has(node.id);
+  const wasJustMastered = justMasteredSkillId === node.id;
   
   // New Unlock Logic: Only the first un-mastered skill in the path (sorted by XP) is unlocked.
   const firstUnmasteredNode = pathNodes.find(n => !masteredSkills.has(n.id));
@@ -58,12 +60,13 @@ const SkillNodeCard = ({ node, pathNodes, pathId }: SkillNodeCardProps) => {
 
   return (
     <Card className={cn(
-      "transition-all duration-300 flex flex-col h-full bg-card/70 group",
+      "transition-all duration-300 flex flex-col h-full bg-card/70 group relative",
       isLocked && "bg-card/30 border-dashed opacity-60",
-      isMastered && "border-green-500/50",
+      isMastered && !wasJustMastered && "border-green-500/50",
       isActive && "border-primary/80 shadow-lg shadow-primary/20 animate-pulse-border",
       // Add a fade-in animation for the currently available quest
-      !isLocked && !isMastered && "animate-fade-in"
+      !isLocked && !isMastered && "animate-fade-in",
+      wasJustMastered && 'animate-mastery'
     )}>
       <CardHeader>
         <div className="flex items-center justify-between">
