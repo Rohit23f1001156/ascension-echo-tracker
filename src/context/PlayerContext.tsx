@@ -67,6 +67,42 @@ interface PlayerContextType {
   addSkillNode: (data: Omit<SkillNode, 'id' | 'description' | 'dependencies' | 'isCustom'> & { pathId: string }) => void;
 }
 
+// A new reusable sorting function
+const sortSkillNodes = (nodes: SkillNode[]): SkillNode[] => {
+  const nodesCopy = [...nodes]; // Create a copy to avoid in-place modification
+  nodesCopy.sort((a, b) => {
+    // 1. Primary sort by XP (ascending)
+    if (a.xp !== b.xp) {
+      return a.xp - b.xp;
+    }
+
+    // 2. Secondary sort for tie-breaking
+    const aIsOriginal = !a.isCustom;
+    const bIsOriginal = !b.isCustom;
+
+    // An original node always comes before a custom node
+    if (aIsOriginal && !bIsOriginal) return -1;
+    if (!aIsOriginal && bIsOriginal) return 1;
+
+    // If both are custom, sort by creation date (from ID)
+    if (!aIsOriginal && !bIsOriginal) {
+       try {
+          // ID is 'custom-ISO_STRING'
+          const dateA = new Date(a.id.substring(7));
+          const dateB = new Date(b.id.substring(7));
+          if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+              return dateA.getTime() - dateB.getTime(); // older first
+          }
+       } catch (e) { /* ignore, fallback to id compare */ }
+    }
+    
+    // For two original nodes or two custom nodes where date parsing fails,
+    // maintain a consistent order using ID.
+    return a.id.localeCompare(b.id);
+  });
+  return nodesCopy;
+};
+
 // Initial Data
 const initialQuestsData: Quest[] = [
   { id: "water", title: "Drink 8 glasses of water", xp: 40, type: 'good', category: 'stamina' },
@@ -176,15 +212,23 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
   const [skillTree, setSkillTree] = useState<SkillPath[]>(() => {
     const saved = localStorage.getItem('skillTree');
+    let dataToProcess: SkillPath[];
     if (saved) {
       try {
-        return JSON.parse(saved);
+        dataToProcess = JSON.parse(saved);
       } catch (e) {
         console.error("Failed to parse skillTree from localStorage", e);
-        return initialSkillTreeData;
+        dataToProcess = initialSkillTreeData;
       }
+    } else {
+      dataToProcess = initialSkillTreeData;
     }
-    return initialSkillTreeData;
+    
+    // Sort nodes within each path upon initialization
+    return dataToProcess.map(path => ({
+      ...path,
+      nodes: sortSkillNodes(path.nodes),
+    }));
   });
 
   useEffect(() => {
@@ -377,42 +421,9 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
         const newNodes = [...newTree[pathIndex].nodes, newSkill];
         
-        // Sort by XP ascending. For ties, original nodes come before custom ones.
-        // If both are custom, sort by creation date.
-        newNodes.sort((a, b) => {
-          // 1. Primary sort by XP (ascending)
-          if (a.xp !== b.xp) {
-            return a.xp - b.xp;
-          }
-
-          // 2. Secondary sort for tie-breaking
-          const aIsOriginal = !a.isCustom;
-          const bIsOriginal = !b.isCustom;
-
-          // An original node always comes before a custom node
-          if (aIsOriginal && !bIsOriginal) return -1;
-          if (!aIsOriginal && bIsOriginal) return 1;
-
-          // If both are custom, sort by creation date (from ID)
-          if (!aIsOriginal && !bIsOriginal) {
-             try {
-                // ID is 'custom-ISO_STRING'
-                const dateA = new Date(a.id.substring(7));
-                const dateB = new Date(b.id.substring(7));
-                if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
-                    return dateA.getTime() - dateB.getTime(); // older first
-                }
-             } catch (e) { /* ignore, fallback to id compare */ }
-          }
-          
-          // For two original nodes or two custom nodes where date parsing fails,
-          // maintain a consistent order using ID.
-          return a.id.localeCompare(b.id);
-        });
-
         newTree[pathIndex] = {
           ...newTree[pathIndex],
-          nodes: newNodes,
+          nodes: sortSkillNodes(newNodes),
         };
 
         toast.success("New quest added successfully!");
