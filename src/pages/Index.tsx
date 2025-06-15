@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import {
   CardHeader,
@@ -40,7 +39,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import WeeklySummary from "@/components/WeeklySummary";
-import HabitWar from "@/components/HabitWar";
+import ShadowTrials from "@/components/ShadowTrials";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
@@ -171,11 +170,11 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Habit War */}
-        <HabitWar />
+        {/* Shadow Trials */}
+        <ShadowTrials />
         
         {/* Weekly Summary */}
-        <section className="mt-8">
+        <section id="weekly-summary" className="mt-8">
           <WeeklySummary />
         </section>
       </div>

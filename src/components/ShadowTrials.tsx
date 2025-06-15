@@ -4,23 +4,23 @@ import HabitCard from "./HabitCard";
 import AddHabitDialog from "./AddHabitDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 
-const HabitWar = () => {
+const ShadowTrials = () => {
     const { habits } = usePlayer();
 
     const goodHabits = habits.filter(h => h.type === 'good');
     const badHabits = habits.filter(h => h.type === 'bad');
     
     return (
-        <section className="mb-8">
-            <Card className="system-card">
+        <section id="shadow-trials" className="mb-8">
+            <Card className="system-card relative">
+                 <div className="absolute top-6 right-6 z-10">
+                    <AddHabitDialog />
+                </div>
                 <div className="system-card-inner">
                     <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <CardTitle className="text-2xl font-bold tracking-widest uppercase font-serif">Habit War</CardTitle>
-                                <CardDescription>Conquer your habits. Build your streaks.</CardDescription>
-                            </div>
-                            <AddHabitDialog />
+                        <div>
+                            <CardTitle className="text-2xl font-bold tracking-widest uppercase font-serif">Shadow Trials</CardTitle>
+                            <CardDescription>Conquer your habits. Build your streaks.</CardDescription>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -64,4 +64,4 @@ const HabitWar = () => {
     )
 }
 
-export default HabitWar;
+export default ShadowTrials;
