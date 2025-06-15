@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { skillTreeData as initialSkillTreeData, SkillPath, SkillNode } from '@/data/skillTreeData';
@@ -29,6 +28,15 @@ export interface Buff {
   expiry: number; // timestamp
   stat: 'strength' | 'stamina' | 'concentration' | 'intelligence' | 'wealth';
   multiplier: number;
+}
+
+export interface Habit {
+  id: string;
+  title: string;
+  type: 'good' | 'bad';
+  streak: number;
+  lastCompleted: string | null;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
 }
 
 export interface SystemStats {
@@ -62,7 +70,10 @@ interface PlayerContextType {
   stats: SystemStats;
   profile: UserProfile;
   quests: Quest[];
-  completedQuests: Set<string>;
+  habits: Habit[];
+  addHabit: (habitData: Omit<Habit, 'id' | 'streak' | 'lastCompleted'>) => void;
+  deleteHabit: (habitId: string) => void;
+  toggleHabit: (habitId: string) => void;
   addQuest: (questData: Omit<Quest, 'id' | 'category' | 'lastCompleted' | 'streak'> & { category?: Quest['category'] }) => void;
   updateQuest: (questId: string, data: Partial<Quest>) => void;
   deleteQuest: (questId: string) => void;
@@ -136,6 +147,11 @@ const initialQuestsData: Quest[] = [
   { id: "workout-pre-dinner", title: "Sung Jin-Woo mini-workout (pre-dinner)", xp: 25, type: 'good', category: 'strength', difficulty: 'Medium' },
 ];
 
+const initialHabitsData: Habit[] = [
+    { id: 'habit-workout', title: 'Daily Workout', type: 'good', difficulty: 'Medium', streak: 0, lastCompleted: null },
+    { id: 'habit-no-junk-food', title: 'Avoid Junk Food', type: 'bad', difficulty: 'Easy', streak: 0, lastCompleted: null },
+];
+
 const initialStats: SystemStats = {
   name: "",
   avatar: "user",
@@ -200,6 +216,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     const savedQuests = localStorage.getItem('playerQuests');
     return savedQuests ? JSON.parse(savedQuests) : initialQuestsData;
   });
+  const [habits, setHabits] = useState<Habit[]>(() => {
+    const savedHabits = localStorage.getItem('playerHabits');
+    return savedHabits ? JSON.parse(savedHabits) : initialHabitsData;
+  });
   const [completedQuests, setCompletedQuests] = useState<Set<string>>(() => {
     const savedCompleted = localStorage.getItem('completedQuests');
     return savedCompleted ? new Set(JSON.parse(savedCompleted)) : new Set();
@@ -253,12 +273,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     }));
   });
 
-  // Effect to reset recurring quests based on dates
+  // Effect to reset recurring quests and habits
   useEffect(() => {
     let questsNeedUpdate = false;
+    let habitsNeedUpdate = false;
     let completedQuestsNeedUpdate = false;
 
     const updatedQuests = [...quests];
+    const updatedHabits = [...habits];
     const updatedCompletedQuests = new Set(completedQuests);
 
     quests.forEach((quest, index) => {
@@ -288,8 +310,26 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
+    habits.forEach((habit, index) => {
+        if (habit.lastCompleted) {
+            const lastCompletedDate = new Date(habit.lastCompleted);
+            if (!isToday(lastCompletedDate) && !isYesterday(lastCompletedDate)) {
+                if (habit.streak > 0) {
+                    toast.warning(`Streak Lost for "${habit.title}"`, {
+                        description: "You missed a day, but you can start a new streak today!",
+                    });
+                    updatedHabits[index] = { ...habit, streak: 0 };
+                    habitsNeedUpdate = true;
+                }
+            }
+        }
+    });
+
     if (questsNeedUpdate) {
       setQuests(updatedQuests);
+    }
+    if (habitsNeedUpdate) {
+      setHabits(updatedHabits);
     }
     if (completedQuestsNeedUpdate) {
       setCompletedQuests(updatedCompletedQuests);
@@ -308,6 +348,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     localStorage.setItem('playerQuests', JSON.stringify(quests));
   }, [quests]);
+
+  useEffect(() => {
+    localStorage.setItem('playerHabits', JSON.stringify(habits));
+  }, [habits]);
 
   useEffect(() => {
     localStorage.setItem('completedQuests', JSON.stringify(Array.from(completedQuests)));
@@ -384,6 +428,22 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         return newSet;
     });
     toast.success("Quest deleted.");
+  };
+
+  const addHabit = (habitData: Omit<Habit, 'id' | 'streak' | 'lastCompleted'>) => {
+    const newHabit: Habit = {
+      ...habitData,
+      id: `habit-${new Date().toISOString()}`,
+      streak: 0,
+      lastCompleted: null,
+    };
+    setHabits(prev => [...prev, newHabit]);
+    toast.success(`New Habit Added: ${newHabit.title}`);
+  };
+
+  const deleteHabit = (habitId: string) => {
+    setHabits(prev => prev.filter(h => h.id !== habitId));
+    toast.success("Habit removed.");
   };
 
   const updatePlayerProfile = (newStats: Partial<SystemStats>, newProfile: Partial<UserProfile>) => {
@@ -836,7 +896,75 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, updateQuest, deleteQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig };
+  const toggleHabit = (habitId: string) => {
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
+
+    const isCompletedToday = habit.lastCompleted ? isToday(new Date(habit.lastCompleted)) : false;
+    const now = new Date();
+    let xpChange = 0;
+    const difficultyMultipliers = { Easy: 10, Medium: 15, Hard: 20 };
+    const baseXP = difficultyMultipliers[habit.difficulty];
+
+    if (isCompletedToday) {
+        // --- UNDO ---
+        const lastStreak = habit.streak > 0 ? habit.streak -1 : 0;
+        const updatedHabit = { ...habit, streak: lastStreak, lastCompleted: null };
+        setHabits(prev => prev.map(h => h.id === habitId ? updatedHabit : h));
+        xpChange = -baseXP;
+        toast.info(`Undid progress for "${habit.title}".`);
+    } else {
+        // --- COMPLETE ---
+        let newStreak = 1;
+        if (habit.lastCompleted && isYesterday(new Date(habit.lastCompleted))) {
+            newStreak = habit.streak + 1;
+        }
+
+        xpChange = baseXP;
+        let streakBonus = 0;
+
+        if (newStreak > 0 && newStreak % 7 === 0) {
+            streakBonus = 50; // 7-day streak bonus
+            xpChange += streakBonus;
+            toast.success(`7-Day Streak Bonus! +${streakBonus} XP!`);
+        }
+
+        const updatedHabit = { ...habit, streak: newStreak, lastCompleted: now.toISOString() };
+        setHabits(prev => prev.map(h => h.id === habitId ? updatedHabit : h));
+        toast.success(`Completed: "${habit.title}"! +${xpChange} XP`);
+    }
+
+    setStats(prevStats => {
+        let newXp = prevStats.xp + xpChange;
+        let newLevel = prevStats.level;
+        let newXpNextLevel = prevStats.xpNextLevel;
+        let newStatPointsToAllocate = prevStats.statPointsToAllocate;
+        let leveledUp = false;
+        
+        while (newXp >= newXpNextLevel) {
+            leveledUp = true;
+            newLevel++;
+            newXp -= newXpNextLevel;
+            newXpNextLevel = 1000 + newLevel * 500;
+            newStatPointsToAllocate += 1;
+        }
+
+        if (leveledUp) {
+            setLevelUpAnimation(true);
+            setTimeout(() => setLevelUpAnimation(false), 3000);
+        }
+
+        return {
+            ...prevStats,
+            xp: Math.max(0, newXp),
+            level: newLevel,
+            xpNextLevel: newXpNextLevel,
+            statPointsToAllocate: newStatPointsToAllocate,
+        };
+    });
+  };
+
+  const value = { stats, profile, quests, habits, addQuest, updateQuest, deleteQuest, toggleQuest, addHabit, deleteHabit, toggleHabit, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig };
 
   return (
     <PlayerContext.Provider value={value}>

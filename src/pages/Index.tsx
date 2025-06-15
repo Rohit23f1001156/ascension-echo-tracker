@@ -40,6 +40,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import WeeklySummary from "@/components/WeeklySummary";
+import HabitWar from "@/components/HabitWar";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
@@ -143,6 +144,9 @@ const Index = () => {
         <section className="mb-8">
           <WeeklySummary />
         </section>
+        
+        {/* Habit War */}
+        <HabitWar />
 
         {/* Quick Actions */}
         <section>
