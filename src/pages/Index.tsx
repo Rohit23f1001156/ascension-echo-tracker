@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -54,6 +53,7 @@ import { supabase } from "@/lib/supabase";
 import AiCompanion from "@/components/AiCompanion";
 import AnalyticsChart from "@/components/AnalyticsChart";
 import LevelUpDialog from "@/components/LevelUpDialog";
+import FloatingCoins from "@/components/FloatingCoins";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests", description: "Complete your daily challenges and build consistent habits" },
@@ -165,7 +165,6 @@ const Index = () => {
                     <StatItem icon={Brain} label="Intelligence" value={systemStats.intelligence} />
                     <StatItem icon={DollarSign} label="Wealth" value={systemStats.wealth} />
                     <StatItem icon={Star} label="Skills" value={systemStats.skills} />
-                    <StatItem icon={Coins} label="Coins" value={systemStats.coins} />
                   </div>
                 </CardContent>
               </div>
@@ -271,6 +270,9 @@ const Index = () => {
             levelUpInfo={levelUpData}
           />
         </div>
+        
+        {/* Floating Coins */}
+        <FloatingCoins />
       </SharedLayout>
     </TooltipProvider>
   );

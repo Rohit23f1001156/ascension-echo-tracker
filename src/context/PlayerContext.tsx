@@ -5,6 +5,7 @@ import ReactConfetti from 'react-confetti';
 import FullScreenLevelUpAnimation from '@/components/FullScreenLevelUpAnimation';
 import { isToday, isYesterday } from 'date-fns';
 import { Flame } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 // Interfaces
 export interface Quest {
@@ -172,9 +173,9 @@ const initialStats: SystemStats = {
   avatar: "user",
   title: "Beginner",
   class: "NA",
-  level: 0,
+  level: 1, // Start at level 1, not 0
   xp: 0,
-  xpNextLevel: 1000,
+  xpNextLevel: 100, // First level up at 100 XP
   strength: 0,
   stamina: 0,
   concentration: 0,
@@ -548,11 +549,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         let awardedPerk: Buff | null = null;
         let newBuffs = prevStats.buffs.filter(b => b.expiry > Date.now());
 
+        // Fixed leveling system: Level 1->2 needs 100 XP, then each level needs 100 more
         while (newXp >= newXpNextLevel) {
           leveledUp = true;
           newLevel++;
           newXp -= newXpNextLevel;
-          newXpNextLevel = 1000 + newLevel * 500;
+          newXpNextLevel = newLevel === 2 ? 200 : (newLevel - 1) * 100; // Level 2 needs 200, Level 3 needs 300, etc.
           newStatPointsToAllocate += 1;
         }
 
@@ -563,7 +565,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         }
         
         const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];
-        const titleIndex = Math.min(Math.floor(newLevel / 10), titles.length - 1);
+        const titleIndex = Math.min(Math.floor((newLevel - 1) / 10), titles.length - 1);
         const newTitle = titles[titleIndex];
 
         return {
@@ -584,11 +586,42 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const updatePlayerProfile = (newStats: Partial<SystemStats>, newProfile: Partial<UserProfile>) => {
     setStats(prev => {
       const isFirstTime = !prev.name && newStats.name;
-      return {
+      const updatedStats = {
         ...prev, 
         ...newStats,
         coins: isFirstTime ? (prev.coins || 0) + 20 : (prev.coins || 0),
+      };
+      
+      // Save to Supabase
+      if (newStats.name) {
+        const saveProfile = async () => {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { error } = await supabase.from('profiles').upsert({
+                id: user.id,
+                stats: updatedStats,
+                settings: { ...profile, ...newProfile },
+                onboarding_complete: true,
+                updated_at: new Date().toISOString(),
+              });
+              
+              if (error) {
+                console.error('Supabase profile save error:', error);
+                toast.error('Failed to save your profile to the cloud.');
+              } else {
+                console.log('Profile saved successfully to Supabase');
+              }
+            }
+          } catch (err) {
+            console.error('Error saving profile:', err);
+            toast.error('Failed to save your profile to the cloud.');
+          }
+        };
+        saveProfile();
       }
+      
+      return updatedStats;
     });
     setProfile(prev => ({ ...prev, ...newProfile }));
     localStorage.setItem('onboardingComplete', 'true');
@@ -645,7 +678,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
          leveledUp = true;
          newLevel++;
          newXp -= newXpNextLevel;
-         newXpNextLevel = 1000 + newLevel * 500;
+         newXpNextLevel = newLevel === 2 ? 200 : (newLevel - 1) * 100; // Level 2 needs 200, Level 3 needs 300, etc.
          newStatPointsToAllocate += 1;
        }
 
@@ -668,7 +701,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
        }
        
        const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];
-       const titleIndex = Math.min(Math.floor(newLevel / 10), titles.length - 1);
+       const titleIndex = Math.min(Math.floor((newLevel - 1) / 10), titles.length - 1);
        const newTitle = titles[titleIndex];
 
        return {
@@ -965,7 +998,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         leveledUp = true;
         newLevel++;
         newXp -= newXpNextLevel;
-        newXpNextLevel = 1000 + newLevel * 500;
+        newXpNextLevel = newLevel === 2 ? 200 : (newLevel - 1) * 100; // Level 2 needs 200, Level 3 needs 300, etc.
         newStatPointsToAllocate += 1;
       }
 
@@ -988,7 +1021,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       }
       
       const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];
-      const titleIndex = Math.min(Math.floor(newLevel / 10), titles.length - 1);
+      const titleIndex = Math.min(Math.floor((newLevel - 1) / 10), titles.length - 1);
       const newTitle = titles[titleIndex];
 
       return {
@@ -999,6 +1032,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         title: newTitle,
         statPointsToAllocate: newStatPointsToAllocate,
         buffs: newBuffs,
+        coins: Math.max(0, prevStats.coins + coinsChange),
       };
     });
   };
@@ -1061,7 +1095,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
             leveledUp = true;
             newLevel++;
             newXp -= newXpNextLevel;
-            newXpNextLevel = 1000 + newLevel * 500;
+            newXpNextLevel = newLevel === 2 ? 200 : (newLevel - 1) * 100; // Level 2 needs 200, Level 3 needs 300, etc.
             newStatPointsToAllocate += 1;
         }
 

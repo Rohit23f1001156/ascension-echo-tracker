@@ -22,6 +22,16 @@ const clearPlayerData = () => {
   localStorage.removeItem('shadow-ascendant-quests');
   localStorage.removeItem('shadow-ascendant-journal');
   localStorage.removeItem('shadow-ascendant-habits');
+  localStorage.removeItem('playerStats');
+  localStorage.removeItem('playerProfile');
+  localStorage.removeItem('playerQuests');
+  localStorage.removeItem('playerHabits');
+  localStorage.removeItem('completedQuests');
+  localStorage.removeItem('questLog');
+  localStorage.removeItem('journalEntries');
+  localStorage.removeItem('activeSkillQuests');
+  localStorage.removeItem('masteredSkills');
+  localStorage.removeItem('skillTree');
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -32,13 +42,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const syncProfile = async (session: Session | null) => {
       if (session?.user) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        if (profile?.onboarding_complete) {
-          localStorage.setItem('shadow-ascendant-stats', JSON.stringify(profile.stats));
-          localStorage.setItem('shadow-ascendant-settings', JSON.stringify(profile.settings));
-          localStorage.setItem('onboardingComplete', 'true');
-        } else {
-          clearPlayerData();
+        try {
+          const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          
+          if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+            console.error('Error fetching profile:', error);
+          } else if (profile?.onboarding_complete) {
+            console.log('Syncing profile from Supabase:', profile);
+            localStorage.setItem('playerStats', JSON.stringify(profile.stats));
+            localStorage.setItem('playerProfile', JSON.stringify(profile.settings));
+            localStorage.setItem('onboardingComplete', 'true');
+          } else {
+            console.log('No profile found or onboarding not complete');
+            clearPlayerData();
+          }
+        } catch (err) {
+          console.error('Error syncing profile:', err);
         }
       } else {
         clearPlayerData();
