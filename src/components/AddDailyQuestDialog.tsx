@@ -42,7 +42,7 @@ import { Label } from "@/components/ui/label";
 
 const questFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
-  xp: z.coerce.number().int().min(1, { message: "XP must be at least 1." }).max(100, { message: "XP cannot exceed 100." }),
+  xp: z.coerce.number().int().min(1, { message: "XP must be at least 1." }),
   duration: z.coerce.number().int().min(1, "Duration must be at least 1 minute.").max(180, "Max duration is 180 min. For longer tasks, please create a separate quest.").optional(),
   isBadHabit: z.boolean().default(false),
   difficulty: z.enum(["Easy", "Medium", "Hard"]).default("Easy"),
@@ -106,7 +106,7 @@ export function AddDailyQuestDialog() {
     const multiplier = multipliers[difficulty];
     const finalXP = Math.floor(baseXP * multiplier);
 
-    return Math.min(Math.max(1, finalXP), 100); // Capped between 1 and 100
+    return Math.max(1, finalXP); // Removed the 100 XP cap
   }, [duration, difficulty]);
 
   React.useEffect(() => {
@@ -236,7 +236,7 @@ export function AddDailyQuestDialog() {
                     <FormControl>
                       <Input type="number" placeholder="10" {...field} />
                     </FormControl>
-                    <FormDescription>Max 100 XP.</FormDescription>
+                    <FormDescription>Set a custom XP value.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -248,7 +248,7 @@ export function AddDailyQuestDialog() {
                     <span>🧠</span>
                     <span>{calculateXp()} XP</span>
                 </div>
-                <FormDescription>Calculated based on duration and difficulty. Max 100 XP.</FormDescription>
+                <FormDescription>Calculated based on duration and difficulty.</FormDescription>
               </div>
             )}
             <FormField

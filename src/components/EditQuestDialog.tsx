@@ -52,7 +52,7 @@ import { usePlayer, Quest } from '@/context/PlayerContext';
 
 const questFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
-  xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }).max(270, { message: "XP cannot exceed 270." }),
+  xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }).max(90, { message: "XP cannot exceed 90." }),
   isBadHabit: z.boolean().default(false),
   isRecurring: z.enum(["none", "daily", "weekly", "custom"]).default("none"),
   difficulty: z.enum(["Easy", "Medium", "Hard"]).default("Easy"),

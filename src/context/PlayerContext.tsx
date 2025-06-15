@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { skillTreeData as initialSkillTreeData, SkillPath, SkillNode } from '@/data/skillTreeData';
@@ -124,8 +125,8 @@ const sortSkillNodes = (nodes: SkillNode[]): SkillNode[] => {
 // Initial Data
 const initialQuestsData: Quest[] = [
   { id: "water", title: "Drink 8 glasses of water", xp: 40, type: 'good', category: 'stamina', difficulty: 'Easy' },
-  { id: "yoga", title: "Yoga", xp: 100, type: 'good', category: 'stamina', difficulty: 'Medium' },
-  { id: "morning-routine", title: "Morning Routine (Brush + ice wash + face care)", xp: 100, type: 'good', category: 'stamina', difficulty: 'Medium' },
+  { id: "yoga", title: "Yoga", xp: 90, type: 'good', category: 'stamina', difficulty: 'Medium' },
+  { id: "morning-routine", title: "Morning Routine (Brush + ice wash + face care)", xp: 90, type: 'good', category: 'stamina', difficulty: 'Medium' },
   { id: "face-yoga", title: "Jawline & Face Yoga", xp: 20, type: 'good', category: 'stamina', difficulty: 'Easy' },
   { id: "brush-twice", title: "Brush teeth twice", xp: 10, type: 'good', category: 'stamina', difficulty: 'Easy' },
   { id: "read", title: "Read / Social Content", xp: 40, type: 'good', category: 'intelligence', difficulty: 'Easy' },
