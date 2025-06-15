@@ -210,22 +210,22 @@ const Index = () => {
           </div>
         </section>
 
+        {/* Shadow Trials */}
+        <ShadowTrials />
+        
         {/* AI Companion */}
         <section className="mb-8 max-w-2xl mx-auto">
             <AiCompanion />
+        </section>
+        
+        {/* Weekly Summary */}
+        <section id="weekly-summary" className="mt-8">
+          <WeeklySummary />
         </section>
 
         {/* Analytics Chart */}
         <section className="mb-8 max-w-4xl mx-auto">
           <AnalyticsChart />
-        </section>
-
-        {/* Shadow Trials */}
-        <ShadowTrials />
-        
-        {/* Weekly Summary */}
-        <section id="weekly-summary" className="mt-8">
-          <WeeklySummary />
         </section>
       </div>
     </SharedLayout>

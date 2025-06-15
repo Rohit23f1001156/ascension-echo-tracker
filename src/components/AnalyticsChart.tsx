@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
@@ -74,7 +73,6 @@ const AnalyticsChart = () => {
                             axisLine={false}
                             tickMargin={8}
                             allowDecimals={false}
-                            width={20}
                         />
                         <ChartTooltip
                             cursor={true}
