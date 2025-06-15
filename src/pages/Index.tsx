@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import {
   CardHeader,
@@ -19,11 +20,23 @@ import {
   Brain,
   Star,
   DollarSign,
+  RotateCcw,
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import SharedLayout from "@/components/layout/SharedLayout";
 import SystemCard from "@/components/SystemCard";
 import HoverTiltWrapper from "@/components/HoverTiltWrapper";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
@@ -37,6 +50,11 @@ const quickActions = [
 
 const Index = () => {
   const { stats: systemStats } = usePlayer();
+
+  const handleRestart = () => {
+    localStorage.clear();
+    window.location.reload();
+  };
 
   return (
     <SharedLayout>
@@ -142,6 +160,23 @@ const Index = () => {
                 url={action.url}
               />
             ))}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <SystemCard title="Restart" icon={RotateCcw} />
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete your progress and you will have to start over.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleRestart}>Yes, Restart</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </section>
       </div>
