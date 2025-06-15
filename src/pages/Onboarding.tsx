@@ -58,6 +58,7 @@ const statOptions = [
 
 const Onboarding = () => {
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { updatePlayerProfile } = usePlayer();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -92,49 +93,67 @@ const Onboarding = () => {
   const prevStep = () => setStep(s => s - 1);
 
   const onSubmit = async (data: OnboardingValues) => {
-    const { name, avatar, difficultyPreference, lifeAreas, timeBudget, ...formStats } = data;
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
+    try {
+      const { name, avatar, difficultyPreference, lifeAreas, timeBudget, ...formStats } = data;
 
-    const statsToSave = {
-      name,
-      avatar,
-      ...formStats,
-      level: 1,
-      xp: 0,
-      xpNextLevel: 100,
-      class: "Novice",
-      title: "Newcomer",
-      skills: 0,
-      coins: 20,
-    };
-    const settingsToSave = { difficultyPreference, lifeAreas, timeBudget: timeBudget || {} };
+      const statsToSave = {
+        name,
+        avatar,
+        ...formStats,
+        level: 1,
+        xp: 0,
+        xpNextLevel: 1000, // Updated to use new formula
+        class: "Novice",
+        title: "Newcomer",
+        skills: 0,
+        coins: 20,
+        statPointsToAllocate: 0,
+        streak: 0,
+        lastActivityDate: null,
+        buffs: [],
+        journalStreak: 0,
+        lastJournalEntryDate: null,
+      };
+      const settingsToSave = { difficultyPreference, lifeAreas, timeBudget: timeBudget || {} };
 
-    // Update local state via context
-    updatePlayerProfile(statsToSave, settingsToSave);
+      // Update local state via context first
+      updatePlayerProfile(statsToSave, settingsToSave);
 
-    if (!user) {
-      toast.error("Authentication error. Please log in again.");
-      return;
+      if (!user) {
+        toast.error("Authentication error. Please log in again.");
+        return;
+      }
+
+      console.log('Saving profile to Supabase for user:', user.id);
+      const { error } = await supabase.from('profiles').upsert({
+        id: user.id,
+        updated_at: new Date().toISOString(),
+        stats: statsToSave,
+        settings: settingsToSave,
+        onboarding_complete: true,
+      });
+
+      if (error) {
+        console.error("Supabase profile save error:", error);
+        toast.error("Failed to save your profile to the cloud: " + error.message);
+        return;
+      }
+
+      console.log('Profile saved successfully to Supabase');
+      localStorage.setItem("onboardingComplete", "true");
+      toast.success(`Welcome, ${name}!`, {
+          description: "You've been granted a welcome bonus of 20 shiny coins to start your journey. Spend them wisely!",
+      });
+      navigate('/');
+    } catch (err) {
+      console.error('Error during onboarding:', err);
+      toast.error('An error occurred during setup. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id,
-      updated_at: new Date().toISOString(),
-      stats: statsToSave,
-      settings: settingsToSave,
-      onboarding_complete: true,
-    });
-
-    if (error) {
-      toast.error("Failed to save your profile to the cloud.");
-      console.error("Supabase profile save error:", error);
-      return;
-    }
-
-    localStorage.setItem("onboardingComplete", "true");
-    toast.success(`Welcome, ${name}!`, {
-        description: "You've been granted a welcome bonus of 20 shiny coins to start your journey. Spend them wisely!",
-    });
-    navigate('/');
   };
 
   return (
@@ -275,10 +294,14 @@ const Onboarding = () => {
               )}
             </CardContent>
             <CardFooter className="flex justify-between">
-              {step > 1 && <Button type="button" variant="outline" onClick={prevStep}>Back</Button>}
+              {step > 1 && <Button type="button" variant="outline" onClick={prevStep} disabled={isSubmitting}>Back</Button>}
               <div/>
-              {step < 5 && <Button type="button" onClick={nextStep}>Next</Button>}
-              {step === 5 && <Button type="submit">Begin Your Ascent</Button>}
+              {step < 5 && <Button type="button" onClick={nextStep} disabled={isSubmitting}>Next</Button>}
+              {step === 5 && (
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Setting up...' : 'Begin Your Ascent'}
+                </Button>
+              )}
             </CardFooter>
           </form>
         </Card>

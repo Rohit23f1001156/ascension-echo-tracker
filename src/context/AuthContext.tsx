@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import { toast } from '@/components/ui/sonner';
 
 type AuthContextType = {
   session: Session | null;
@@ -43,41 +44,80 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const syncProfile = async (session: Session | null) => {
       if (session?.user) {
         try {
-          const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          console.log('Syncing profile for user:', session.user.id);
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
           
-          if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-            console.error('Error fetching profile:', error);
+          if (error) {
+            if (error.code === 'PGRST116') {
+              console.log('No profile found for user, will create on onboarding');
+              clearPlayerData();
+            } else {
+              console.error('Error fetching profile:', error);
+              toast.error('Error loading your profile: ' + error.message);
+            }
           } else if (profile?.onboarding_complete) {
             console.log('Syncing profile from Supabase:', profile);
-            localStorage.setItem('playerStats', JSON.stringify(profile.stats));
-            localStorage.setItem('playerProfile', JSON.stringify(profile.settings));
+            if (profile.stats) {
+              localStorage.setItem('playerStats', JSON.stringify(profile.stats));
+            }
+            if (profile.settings) {
+              localStorage.setItem('playerProfile', JSON.stringify(profile.settings));
+            }
             localStorage.setItem('onboardingComplete', 'true');
+            toast.success('Profile loaded from the cloud!');
           } else {
-            console.log('No profile found or onboarding not complete');
+            console.log('Profile found but onboarding not complete');
             clearPlayerData();
           }
         } catch (err) {
           console.error('Error syncing profile:', err);
+          toast.error('Failed to sync your profile from the cloud.');
         }
       } else {
+        console.log('No session, clearing player data');
         clearPlayerData();
       }
     };
     
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      await syncProfile(session);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+          toast.error('Authentication error: ' + error.message);
+        }
+        await syncProfile(session);
+        setSession(session);
+        setUser(session?.user ?? null);
+      } catch (err) {
+        console.error('Error in getSession:', err);
+        toast.error('Failed to load session.');
+      } finally {
+        setLoading(false);
+      }
     };
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+      
+      if (event === 'SIGNED_OUT') {
+        clearPlayerData();
+        toast.info('Logged out successfully.');
+      }
+      
       await syncProfile(session);
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (event === 'SIGNED_IN') {
+        toast.success('Logged in successfully!');
+      }
     });
 
     return () => {

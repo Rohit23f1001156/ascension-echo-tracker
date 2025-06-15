@@ -149,6 +149,31 @@ const sortSkillNodes = (nodes: SkillNode[]): SkillNode[] => {
   return nodesCopy;
 };
 
+// Helper function to calculate XP needed for next level
+const calculateXpForNextLevel = (currentLevel: number): number => {
+  return 1000 + (currentLevel * 500);
+};
+
+// Helper function to determine current level from total XP
+const calculateLevelFromXP = (totalXp: number): { level: number, xpForNextLevel: number } => {
+  let level = 1;
+  let cumulativeXp = 0;
+  
+  while (true) {
+    const xpNeededForThisLevel = calculateXpForNextLevel(level - 1);
+    if (cumulativeXp + xpNeededForThisLevel > totalXp) {
+      break;
+    }
+    cumulativeXp += xpNeededForThisLevel;
+    level++;
+  }
+  
+  return {
+    level,
+    xpForNextLevel: calculateXpForNextLevel(level - 1)
+  };
+};
+
 // Initial Data
 const initialQuestsData: Quest[] = [
   { id: "water", title: "Drink 8 glasses of water", xp: 40, type: 'good', category: 'stamina', difficulty: 'Easy' },
@@ -173,15 +198,15 @@ const initialStats: SystemStats = {
   avatar: "user",
   title: "Beginner",
   class: "NA",
-  level: 1, // Start at level 1, not 0
+  level: 1,
   xp: 0,
-  xpNextLevel: 100, // First level up at 100 XP
+  xpNextLevel: 1000, // Updated initial value
   strength: 0,
   stamina: 0,
   concentration: 0,
   intelligence: 0,
   wealth: 0,
-  skills: 1,
+  skills: 0, // Start at 0, will be calculated from mastered skills
   statPointsToAllocate: 0,
   coins: 0,
   streak: 0,
@@ -208,7 +233,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       try {
         const parsedStats = JSON.parse(savedStats);
         // Merge with initialStats to ensure all keys are present, especially `buffs`
-        return { ...initialStats, ...parsedStats };
+        const mergedStats = { ...initialStats, ...parsedStats };
+        
+        // Recalculate level and xpNextLevel based on current XP using new formula
+        const { level, xpForNextLevel } = calculateLevelFromXP(mergedStats.xp);
+        mergedStats.level = level;
+        mergedStats.xpNextLevel = xpForNextLevel;
+        
+        return mergedStats;
       } catch (e) {
         console.error("Failed to parse playerStats from localStorage", e);
         return initialStats;
@@ -413,6 +445,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('skillTree', JSON.stringify(skillTree));
   }, [skillTree]);
 
+  // Update skills stat whenever masteredSkills changes
+  useEffect(() => {
+    setStats(prevStats => ({
+      ...prevStats,
+      skills: masteredSkills.size
+    }));
+  }, [masteredSkills]);
+
   const addQuest = (questData: Omit<Quest, 'id' | 'category' | 'lastCompleted' | 'streak'> & { category?: Quest['category'] }) => {
     const { isRecurring, ...restOfQuestData } = questData;
     const newQuest: Quest = {
@@ -542,28 +582,22 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         toast.info(`+${xpGained} XP for writing in your journal!`);
 
         let newXp = prevStats.xp + xpGained;
-        let newLevel = prevStats.level;
-        let newXpNextLevel = prevStats.xpNextLevel;
+        let { level: newLevel, xpForNextLevel: newXpNextLevel } = calculateLevelFromXP(newXp);
         let newStatPointsToAllocate = prevStats.statPointsToAllocate;
         let leveledUp = false;
         let awardedPerk: Buff | null = null;
         let newBuffs = prevStats.buffs.filter(b => b.expiry > Date.now());
 
-        // Fixed leveling system: Level 1->2 needs 100 XP, then each level needs 100 more
-        while (newXp >= newXpNextLevel) {
+        // Check if we leveled up
+        if (newLevel > prevStats.level) {
           leveledUp = true;
-          newLevel++;
-          newXp -= newXpNextLevel;
-          newXpNextLevel = newLevel === 2 ? 200 : (newLevel - 1) * 100; // Level 2 needs 200, Level 3 needs 300, etc.
-          newStatPointsToAllocate += 1;
-        }
-
-        if (leveledUp) {
+          const levelsGained = newLevel - prevStats.level;
+          newStatPointsToAllocate += levelsGained;
           setLevelUpData({ newLevel, perk: awardedPerk });
           setLevelUpAnimation(true);
           setTimeout(() => setLevelUpAnimation(false), 3000);
         }
-        
+
         const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];
         const titleIndex = Math.min(Math.floor((newLevel - 1) / 10), titles.length - 1);
         const newTitle = titles[titleIndex];
@@ -571,7 +605,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         return {
           ...prevStats,
           level: newLevel,
-          xp: Math.max(0, newXp),
+          xp: newXp,
           xpNextLevel: newXpNextLevel,
           title: newTitle,
           statPointsToAllocate: newStatPointsToAllocate,
@@ -608,9 +642,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
               
               if (error) {
                 console.error('Supabase profile save error:', error);
-                toast.error('Failed to save your profile to the cloud.');
+                toast.error('Failed to save your profile to the cloud: ' + error.message);
               } else {
                 console.log('Profile saved successfully to Supabase');
+                toast.success('Profile saved to the cloud!');
               }
             }
           } catch (err) {
@@ -665,8 +700,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
     setStats(prevStats => {
        let newXp = prevStats.xp + skillXp;
-       let newLevel = prevStats.level;
-       let newXpNextLevel = prevStats.xpNextLevel;
+       let { level: newLevel, xpForNextLevel: newXpNextLevel } = calculateLevelFromXP(newXp);
        let newStatPointsToAllocate = prevStats.statPointsToAllocate;
        let leveledUp = false;
        let awardedPerk: Buff | null = null;
@@ -674,15 +708,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
        const now = Date.now();
        let newBuffs = prevStats.buffs.filter(b => b.expiry > now);
 
-       while (newXp >= newXpNextLevel) {
+       // Check if we leveled up
+       if (newLevel > prevStats.level) {
          leveledUp = true;
-         newLevel++;
-         newXp -= newXpNextLevel;
-         newXpNextLevel = newLevel === 2 ? 200 : (newLevel - 1) * 100; // Level 2 needs 200, Level 3 needs 300, etc.
-         newStatPointsToAllocate += 1;
-       }
+         const levelsGained = newLevel - prevStats.level;
+         newStatPointsToAllocate += levelsGained;
 
-       if (leveledUp) {
          const possiblePerks: Omit<Buff, 'id' | 'expiry'>[] = [
            { stat: 'concentration', description: "+10% Concentration XP for 24h", multiplier: 1.10 },
            { stat: 'intelligence', description: "+10% Intelligence XP for 24h", multiplier: 1.10 },
@@ -707,11 +738,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
        return {
          ...prevStats,
          level: newLevel,
-         xp: Math.max(0, newXp),
+         xp: newXp,
          xpNextLevel: newXpNextLevel,
          title: newTitle,
          statPointsToAllocate: newStatPointsToAllocate,
          buffs: newBuffs,
+         skills: masteredSkills.size + 1, // +1 for the skill we just mastered
        };
     });
   };
@@ -985,8 +1017,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       setCompletedQuests(newCompletedSet);
       
       let newXp = prevStats.xp + xpChange;
-      let newLevel = prevStats.level;
-      let newXpNextLevel = prevStats.xpNextLevel;
+      let { level: newLevel, xpForNextLevel: newXpNextLevel } = calculateLevelFromXP(newXp);
       let newStatPointsToAllocate = prevStats.statPointsToAllocate;
       let leveledUp = false;
       let awardedPerk: Buff | null = null;
@@ -994,15 +1025,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       const now = Date.now();
       let newBuffs = prevStats.buffs.filter(b => b.expiry > now);
 
-      while (newXp >= newXpNextLevel) {
+      // Check if we leveled up
+      if (newLevel > prevStats.level) {
         leveledUp = true;
-        newLevel++;
-        newXp -= newXpNextLevel;
-        newXpNextLevel = newLevel === 2 ? 200 : (newLevel - 1) * 100; // Level 2 needs 200, Level 3 needs 300, etc.
-        newStatPointsToAllocate += 1;
-      }
+        const levelsGained = newLevel - prevStats.level;
+        newStatPointsToAllocate += levelsGained;
 
-      if (leveledUp) {
         const possiblePerks: Omit<Buff, 'id' | 'expiry'>[] = [
           { stat: 'concentration', description: "+10% Concentration XP for 24h", multiplier: 1.10 },
           { stat: 'intelligence', description: "+10% Intelligence XP for 24h", multiplier: 1.10 },
@@ -1085,23 +1113,18 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
     setStats(prevStats => {
         let newXp = prevStats.xp + xpChange;
+        let { level: newLevel, xpForNextLevel: newXpNextLevel } = calculateLevelFromXP(newXp);
         const newCoins = prevStats.coins + coinsChange;
-        let newLevel = prevStats.level;
-        let newXpNextLevel = prevStats.xpNextLevel;
         let newStatPointsToAllocate = prevStats.statPointsToAllocate;
         let leveledUp = false;
         
-        while (newXp >= newXpNextLevel) {
-            leveledUp = true;
-            newLevel++;
-            newXp -= newXpNextLevel;
-            newXpNextLevel = newLevel === 2 ? 200 : (newLevel - 1) * 100; // Level 2 needs 200, Level 3 needs 300, etc.
-            newStatPointsToAllocate += 1;
-        }
-
-        if (leveledUp) {
-            setLevelUpAnimation(true);
-            setTimeout(() => setLevelUpAnimation(false), 3000);
+        // Check if we leveled up
+        if (newLevel > prevStats.level) {
+          leveledUp = true;
+          const levelsGained = newLevel - prevStats.level;
+          newStatPointsToAllocate += levelsGained;
+          setLevelUpAnimation(true);
+          setTimeout(() => setLevelUpAnimation(false), 3000);
         }
 
         return {
