@@ -13,9 +13,12 @@ export interface Quest {
   xp: number;
   type: 'good' | 'bad';
   category: 'strength' | 'stamina' | 'concentration' | 'intelligence' | 'wealth' | 'general';
-  isRecurring?: 'daily' | 'weekly';
+  isRecurring?: 'daily' | 'weekly' | 'custom';
   lastCompleted?: string | null;
   streak?: number;
+  difficulty?: 'Easy' | 'Medium' | 'Hard';
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface Buff {
@@ -41,6 +44,7 @@ export interface SystemStats {
   wealth: number;
   skills: number;
   statPointsToAllocate: number;
+  coins: number;
   streak: number;
   lastActivityDate: string | null;
   buffs: Buff[];
@@ -57,8 +61,8 @@ interface PlayerContextType {
   profile: UserProfile;
   quests: Quest[];
   completedQuests: Set<string>;
-  addQuest: (questData: Omit<Quest, 'id' | 'category' | 'lastCompleted' | 'streak'> & { category?: Quest['category'], isRecurring?: 'daily' | 'weekly' }) => void;
-  updateQuest: (questId: string, data: Pick<Quest, 'title' | 'xp' | 'type'> & { isRecurring?: Quest['isRecurring'] }) => void;
+  addQuest: (questData: Omit<Quest, 'id' | 'category' | 'lastCompleted' | 'streak'> & { category?: Quest['category'] }) => void;
+  updateQuest: (questId: string, data: Partial<Quest>) => void;
   toggleQuest: (questId: string) => void;
   updatePlayerProfile: (stats: Partial<SystemStats>, profile: Partial<UserProfile>) => void;
   levelUpData: { newLevel: number, perk: Buff | null } | null;
@@ -117,16 +121,16 @@ const sortSkillNodes = (nodes: SkillNode[]): SkillNode[] => {
 
 // Initial Data
 const initialQuestsData: Quest[] = [
-  { id: "water", title: "Drink 8 glasses of water", xp: 40, type: 'good', category: 'stamina' },
-  { id: "yoga", title: "Yoga", xp: 100, type: 'good', category: 'stamina' },
-  { id: "morning-routine", title: "Morning Routine (Brush + ice wash + face care)", xp: 100, type: 'good', category: 'stamina' },
-  { id: "face-yoga", title: "Jawline & Face Yoga", xp: 20, type: 'good', category: 'stamina' },
-  { id: "brush-twice", title: "Brush teeth twice", xp: 10, type: 'good', category: 'stamina' },
-  { id: "read", title: "Read / Social Content", xp: 40, type: 'good', category: 'intelligence' },
-  { id: "journal", title: "Journaling", xp: 20, type: 'good', category: 'concentration' },
-  { id: "workout-pre-breakfast", title: "Sung Jin-Woo mini-workout (pre-breakfast)", xp: 25, type: 'good', category: 'strength' },
-  { id: "workout-pre-lunch", title: "Sung Jin-Woo mini-workout (pre-lunch)", xp: 25, type: 'good', category: 'strength' },
-  { id: "workout-pre-dinner", title: "Sung Jin-Woo mini-workout (pre-dinner)", xp: 25, type: 'good', category: 'strength' },
+  { id: "water", title: "Drink 8 glasses of water", xp: 40, type: 'good', category: 'stamina', difficulty: 'Easy' },
+  { id: "yoga", title: "Yoga", xp: 100, type: 'good', category: 'stamina', difficulty: 'Medium' },
+  { id: "morning-routine", title: "Morning Routine (Brush + ice wash + face care)", xp: 100, type: 'good', category: 'stamina', difficulty: 'Medium' },
+  { id: "face-yoga", title: "Jawline & Face Yoga", xp: 20, type: 'good', category: 'stamina', difficulty: 'Easy' },
+  { id: "brush-twice", title: "Brush teeth twice", xp: 10, type: 'good', category: 'stamina', difficulty: 'Easy' },
+  { id: "read", title: "Read / Social Content", xp: 40, type: 'good', category: 'intelligence', difficulty: 'Easy' },
+  { id: "journal", title: "Journaling", xp: 20, type: 'good', category: 'concentration', difficulty: 'Easy' },
+  { id: "workout-pre-breakfast", title: "Sung Jin-Woo mini-workout (pre-breakfast)", xp: 25, type: 'good', category: 'strength', difficulty: 'Medium' },
+  { id: "workout-pre-lunch", title: "Sung Jin-Woo mini-workout (pre-lunch)", xp: 25, type: 'good', category: 'strength', difficulty: 'Medium' },
+  { id: "workout-pre-dinner", title: "Sung Jin-Woo mini-workout (pre-dinner)", xp: 25, type: 'good', category: 'strength', difficulty: 'Medium' },
 ];
 
 const initialStats: SystemStats = {
@@ -144,6 +148,7 @@ const initialStats: SystemStats = {
   wealth: 0,
   skills: 1,
   statPointsToAllocate: 0,
+  coins: 0,
   streak: 0,
   lastActivityDate: null,
   buffs: [],
@@ -249,6 +254,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let questsNeedUpdate = false;
     let completedQuestsNeedUpdate = false;
+    let coinsToDeduct = 0;
 
     const updatedQuests = [...quests];
     const updatedCompletedQuests = new Set(completedQuests);
@@ -264,16 +270,22 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
             updatedCompletedQuests.delete(quest.id);
             completedQuestsNeedUpdate = true;
           }
-          // If the last completion was not yesterday, reset the streak
+          // If the last completion was not yesterday, reset the streak and penalize
           if (!isYesterday(lastCompletedDate)) {
             updatedQuests[index] = { ...quest, streak: 0 };
             questsNeedUpdate = true;
+            coinsToDeduct += 5; // Penalty for breaking a streak
           }
         }
         
-        // TODO: Weekly quest logic would go here
+        // TODO: Weekly/Custom quest logic would go here
       }
     });
+
+    if (coinsToDeduct > 0) {
+      setStats(prev => ({...prev, coins: Math.max(0, prev.coins - coinsToDeduct)}));
+      toast.error(`You lost ${coinsToDeduct} coins for breaking your daily streaks!`);
+    }
 
     if (questsNeedUpdate) {
       setQuests(updatedQuests);
@@ -320,15 +332,16 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('skillTree', JSON.stringify(skillTree));
   }, [skillTree]);
 
-  const addQuest = (questData: Omit<Quest, 'id' | 'category' | 'lastCompleted' | 'streak'> & { category?: Quest['category'], isRecurring?: 'daily' | 'weekly' }) => {
+  const addQuest = (questData: Omit<Quest, 'id' | 'category' | 'lastCompleted' | 'streak'> & { category?: Quest['category'] }) => {
     const { isRecurring, ...restOfQuestData } = questData;
     const newQuest: Quest = {
       id: new Date().toISOString(),
       ...restOfQuestData,
       category: questData.category || 'general',
       type: questData.type || 'good',
+      difficulty: questData.difficulty || 'Easy',
     };
-    if (isRecurring) {
+    if (isRecurring && isRecurring !== 'none') {
       newQuest.isRecurring = isRecurring;
       newQuest.streak = 0;
       newQuest.lastCompleted = null;
@@ -336,20 +349,20 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     setQuests(prev => [...prev, newQuest]);
   };
 
-  const updateQuest = (questId: string, data: Pick<Quest, 'title' | 'xp' | 'type'> & { isRecurring?: Quest['isRecurring'] }) => {
+  const updateQuest = (questId: string, data: Partial<Quest>) => {
     setQuests(prevQuests => 
         prevQuests.map(q => {
             if (q.id === questId) {
                 const updatedQuest = { ...q, ...data };
                 
-                const recurrenceWasRemoved = q.isRecurring && !data.isRecurring;
-                const recurrenceWasAdded = !q.isRecurring && data.isRecurring;
+                const recurrenceWasChanged = data.isRecurring !== undefined && q.isRecurring !== data.isRecurring;
+                const recurrenceWasRemoved = q.isRecurring && data.isRecurring === undefined;
 
                 if (recurrenceWasRemoved) {
-                  updatedQuest.isRecurring = undefined;
+                  delete updatedQuest.isRecurring;
                   delete updatedQuest.streak;
                   delete updatedQuest.lastCompleted;
-                } else if (recurrenceWasAdded) {
+                } else if (recurrenceWasChanged) {
                   updatedQuest.streak = 0;
                   updatedQuest.lastCompleted = null;
                 }
@@ -363,7 +376,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updatePlayerProfile = (newStats: Partial<SystemStats>, newProfile: Partial<UserProfile>) => {
-    setStats(prev => ({ ...prev, ...newStats }));
+    setStats(prev => {
+      const isFirstTime = !prev.name && newStats.name;
+      return {
+        ...prev, 
+        ...newStats,
+        coins: isFirstTime ? (prev.coins || 0) + 20 : (prev.coins || 0),
+      }
+    });
     setProfile(prev => ({ ...prev, ...newProfile }));
     localStorage.setItem('onboardingComplete', 'true');
   };
@@ -627,9 +647,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setStats(prevStats => {
+      const difficultyMultipliers = { Easy: 1, Medium: 1.25, Hard: 1.5 };
+      const difficultyMultiplier = difficultyMultipliers[questForXpCalc.difficulty || 'Easy'] || 1;
+
       // Apply multipliers for completing a quest
       let finalXp = questForXpCalc.xp;
       if (isCompleting && questForXpCalc.type === 'good') {
+        finalXp *= difficultyMultiplier;
+        
         // Apply stat bonus
         const statMultiplier = 0.05; // 5% bonus per stat point
         const statBonus = (statValue: number) => statValue * statMultiplier;
@@ -667,10 +692,16 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         finalXp = Math.round(finalXp);
       }
 
+      const coinsEarned = isCompleting && questForXpCalc.type === 'good' ? Math.round(questForXpCalc.xp * difficultyMultiplier * 0.1) : 0;
+      let coinsChange = 0;
       let xpChange = 0;
+
       if (newCompletedSet.has(questId)) {
         newCompletedSet.delete(questId);
         xpChange = quest.type === 'good' ? -quest.xp : quest.xp; // Revert base XP on undo
+        const previousCoins = Math.round(quest.xp * difficultyMultiplier * 0.1);
+        coinsChange = -previousCoins;
+
         setQuestLog(prevLog => {
           const newLog = [...prevLog];
           const lastIndex = newLog.map(item => item.questId).lastIndexOf(questId);
@@ -683,6 +714,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       } else {
         newCompletedSet.add(questId);
         xpChange = quest.type === 'good' ? finalXp : -finalXp;
+        coinsChange = coinsEarned;
         setQuestLog(prevLog => [...prevLog, { questId: quest.id, title: quest.title, xp: finalXp, date: Date.now() }]);
       }
       setCompletedQuests(newCompletedSet);
@@ -750,6 +782,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         xp: Math.max(0, newXp),
         xpNextLevel: newXpNextLevel,
         title: newTitle,
+        coins: Math.max(0, newCoins),
         strength: prevStats.strength,
         stamina: prevStats.stamina,
         concentration: prevStats.concentration,
