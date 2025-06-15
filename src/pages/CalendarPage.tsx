@@ -5,26 +5,22 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import SharedLayout from '@/components/layout/SharedLayout';
-import { DayPicker } from 'react-day-picker';
-import 'react-day-picker/dist/style.css';
+import { type ActiveModifiers } from 'react-day-picker';
 import { usePlayer } from '@/context/PlayerContext';
 import { isSameDay, parseISO } from 'date-fns';
 import DayDetailModal from '@/components/DayDetailModal';
 import type { Quest, JournalEntry } from '@/context/PlayerContext';
+import { Calendar } from '@/components/ui/calendar';
+import TimeStats from '@/components/TimeStats';
 
 const CalendarPage = () => {
   const { quests, questLog, journalEntries } = usePlayer();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  const completedOnDay = (date: Date): number => {
-    return questLog.filter(log => isSameDay(new Date(log.date), date)).length;
-  };
-
   const dayModifiers = useMemo(() => {
     const modifiers: Record<string, Date[]> = {};
     questLog.forEach(log => {
       const date = new Date(log.date);
-      // Create a modifier for any day with at least one completion
       const key = 'completed';
       if (!modifiers[key]) {
         modifiers[key] = [];
@@ -38,14 +34,16 @@ const CalendarPage = () => {
 
   const modifierStyles = {
     completed: { 
-      backgroundColor: 'rgba(34, 197, 94, 0.2)',
-      border: '1px solid rgba(34, 197, 94, 0.4)',
-     },
+      backgroundColor: 'hsl(var(--primary) / 0.2)',
+      borderColor: 'hsl(var(--primary) / 0.4)',
+      boxShadow: '0 0 10px hsl(var(--primary) / 0.3)',
+      borderRadius: '9999px',
+    },
   };
 
-  const handleDayClick = (day: Date, modifiers: { completed?: boolean }) => {
-    // We only want to open the modal for days that have activity
-    if (modifiers.completed) {
+  const handleDayClick = (day: Date, modifiers: ActiveModifiers) => {
+    // We only want to open the modal for days that have activity or for today
+    if (modifiers.completed || modifiers.today) {
       setSelectedDate(day);
     }
   };
@@ -61,7 +59,6 @@ const CalendarPage = () => {
       completedQuestLogsOnDay.map(log => log.questId)
     );
     
-    // We need to associate the original XP from the quest definition, not the final calculated XP from the log
     const completedQuestsOnDay: Quest[] = quests.filter(q => completedQuestIdsOnDay.has(q.id));
 
     const journalEntryOnDay: JournalEntry | null = journalEntries.find(entry => 
@@ -90,24 +87,29 @@ const CalendarPage = () => {
         </div>
       </header>
 
-      <Card className="bg-card/80 border-primary/20">
-        <CardHeader>
-          <CardTitle>Progress Calendar</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center">
-          <DayPicker
-            mode="single"
-            onDayClick={handleDayClick}
-            modifiers={dayModifiers}
-            modifierStyles={modifierStyles}
-            className="text-base sm:text-lg"
-            classNames={{
-              day: 'h-10 w-10 sm:h-12 sm:w-12 text-base rounded-full',
-              head_cell: 'w-10 sm:w-12',
-            }}
-          />
-        </CardContent>
-      </Card>
+      <div className="grid md:grid-cols-2 gap-8 items-start">
+        <Card className="bg-card/80 border-primary/20">
+          <CardHeader>
+            <CardTitle>Progress Calendar</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Calendar
+              mode="single"
+              onDayClick={handleDayClick}
+              modifiers={dayModifiers}
+              modifierStyles={modifierStyles}
+              className="p-0"
+              classNames={{
+                day_today:
+                  'bg-accent/50 text-accent-foreground border-2 border-primary/50 animate-pulse-border rounded-full',
+              }}
+            />
+          </CardContent>
+        </Card>
+        <div className="space-y-8">
+          <TimeStats />
+        </div>
+      </div>
       
       <DayDetailModal 
         isOpen={!!selectedDate}
