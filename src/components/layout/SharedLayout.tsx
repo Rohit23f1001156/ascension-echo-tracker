@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Coins } from 'lucide-react';
 import { usePlayer } from '@/context/PlayerContext';
 import LevelUpDialog from '@/components/LevelUpDialog';
 import Confetti from 'react-confetti';
@@ -55,14 +55,21 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="blue-flow-border"></div>
       
       <div className="min-h-screen bg-black/70 backdrop-blur-sm relative z-10">
-        {stats.statPointsToAllocate > 0 && (
-          <Link to="/stats" className="absolute top-4 right-4 z-20">
-            <div className="flex items-center gap-2 bg-primary/80 border border-primary/30 shadow-lg p-2 rounded-lg text-primary-foreground animate-pulse-strong cursor-pointer hover:bg-primary">
-              <PlusCircle className="w-5 h-5" />
-              <span className="font-bold text-lg">{stats.statPointsToAllocate}</span>
-            </div>
-          </Link>
-        )}
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-yellow-400/20 border border-yellow-500/30 shadow-lg p-2 rounded-lg text-white">
+            <Coins className="w-5 h-5 text-yellow-400" />
+            <span className="font-bold text-lg">{stats.coins}</span>
+          </div>
+
+          {stats.statPointsToAllocate > 0 && (
+            <Link to="/stats">
+              <div className="flex items-center gap-2 bg-primary/80 border border-primary/30 shadow-lg p-2 rounded-lg text-primary-foreground animate-pulse-strong cursor-pointer hover:bg-primary">
+                <PlusCircle className="w-5 h-5" />
+                <span className="font-bold text-lg">{stats.statPointsToAllocate}</span>
+              </div>
+            </Link>
+          )}
+        </div>
         <div className="container mx-auto px-4 py-8">
           {children}
         </div>
