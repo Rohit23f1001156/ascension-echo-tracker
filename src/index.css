@@ -3,8 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
-
+/* // ... keep existing code (root and dark theme definitions) */
 @layer base {
   :root {
     --background: 240 10% 3.9%;
@@ -79,6 +78,7 @@
   }
 }
 
+/* // ... keep existing code (Live wallpaper styles) */
 /* Live wallpaper styles */
 @keyframes aura-pulse {
   0%, 100% {
@@ -145,4 +145,18 @@
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
+}
+
+/* System Card hover effect */
+.system-card {
+    position: relative;
+    background-color: hsl(var(--card) / 0.8);
+    border: 1px solid hsl(var(--primary) / 0.2);
+    transition: all 0.3s ease-out;
+}
+
+.system-card:hover {
+    transform: translateY(-5px);
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.5);
 }

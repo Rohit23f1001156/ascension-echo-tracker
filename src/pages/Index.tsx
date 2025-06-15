@@ -135,7 +135,7 @@ const Index = () => {
             {quickActions.map((action) => (
               <Link to={action.url} key={action.title} className="no-underline">
                 <Card
-                  className="bg-card/80 border-primary/20 hover:border-primary hover:bg-card transition-all cursor-pointer h-full"
+                  className="system-card h-full cursor-pointer"
                 >
                   <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
                     <action.icon className="w-8 h-8 text-primary" />
