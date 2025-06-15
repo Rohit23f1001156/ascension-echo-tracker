@@ -341,7 +341,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       type: questData.type || 'good',
       difficulty: questData.difficulty || 'Easy',
     };
-    if (isRecurring && isRecurring !== 'none') {
+    if (isRecurring) {
       newQuest.isRecurring = isRecurring;
       newQuest.streak = 0;
       newQuest.lastCompleted = null;
@@ -771,6 +771,8 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
               newLastActivityDate = today;
           }
       }
+
+      const newCoins = prevStats.coins + coinsChange;
 
       const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];
       const titleIndex = Math.min(Math.floor(newLevel / 10), titles.length - 1);
