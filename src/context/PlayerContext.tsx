@@ -71,6 +71,7 @@ interface PlayerContextType {
   profile: UserProfile;
   quests: Quest[];
   habits: Habit[];
+  completedQuests: Set<string>;
   addHabit: (habitData: Omit<Habit, 'id' | 'streak' | 'lastCompleted'>) => void;
   deleteHabit: (habitId: string) => void;
   toggleHabit: (habitId: string) => void;
@@ -964,7 +965,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const value = { stats, profile, quests, habits, addQuest, updateQuest, deleteQuest, toggleQuest, addHabit, deleteHabit, toggleHabit, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig };
+  const value = { stats, profile, quests, habits, completedQuests, addQuest, updateQuest, deleteQuest, toggleQuest, addHabit, deleteHabit, toggleHabit, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig };
 
   return (
     <PlayerContext.Provider value={value}>
