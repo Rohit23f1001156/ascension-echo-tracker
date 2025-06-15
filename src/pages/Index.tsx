@@ -44,6 +44,7 @@ import WeeklySummary from "@/components/WeeklySummary";
 import ShadowTrials from "@/components/ShadowTrials";
 import { supabase } from "@/lib/supabase";
 import AiCompanion from "@/components/AiCompanion";
+import AnalyticsChart from "@/components/AnalyticsChart";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
@@ -212,6 +213,11 @@ const Index = () => {
         {/* AI Companion */}
         <section className="mb-8 max-w-2xl mx-auto">
             <AiCompanion />
+        </section>
+
+        {/* Analytics Chart */}
+        <section className="mb-8 max-w-4xl mx-auto">
+          <AnalyticsChart />
         </section>
 
         {/* Shadow Trials */}
