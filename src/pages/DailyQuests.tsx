@@ -5,62 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Flame, Repeat, Edit, Coins, Calendar as CalendarIcon } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { usePlayer, Quest } from "@/context/PlayerContext";
+import { usePlayer } from "@/context/PlayerContext";
 import { toast } from "@/components/ui/sonner";
 import { EditQuestDialog } from "@/components/EditQuestDialog";
-
-const questFormSchema = z.object({
-  title: z.string().min(3, { message: "Title must be at least 3 characters." }),
-  xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }),
-  isBadHabit: z.boolean().default(false),
-  isRecurring: z.enum(["none", "daily", "weekly", "custom"]).default("none"),
-  difficulty: z.enum(["Easy", "Medium", "Hard"]).default("Easy"),
-  startDate: z.date().optional(),
-  endDate: z.date().optional(),
-}).refine(data => {
-  if (data.isRecurring === 'custom') {
-    return !!data.startDate && !!data.endDate;
-  }
-  return true;
-}, {
-  message: "Start and end dates are required for custom recurrence.",
-  path: ["startDate"],
-});
-
-type AddQuestFormValues = z.infer<typeof questFormSchema>;
+import { AddDailyQuestDialog } from "@/components/AddDailyQuestDialog";
 
 const DailyQuests = () => {
   const { quests, completedQuests, toggleQuest, stats, setConfettiConfig } = usePlayer();
@@ -121,10 +69,7 @@ const DailyQuests = () => {
             Back to Dashboard
           </Link>
         </Button>
-        <div className="flex items-center gap-2 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 font-bold px-3 py-1.5 rounded-full text-sm">
-          <Coins className="w-5 h-5" />
-          <span>{stats.coins}</span>
-        </div>
+        <AddDailyQuestDialog />
       </div>
       <header className="mb-8">
         <div>
