@@ -5,29 +5,82 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Flame } from "lucide-react";
+import { ArrowLeft, Flame, Plus } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 interface Quest {
   id: string;
   title: string;
   xp: number;
+  type: 'good' | 'bad';
 }
 
-const initialQuests: Quest[] = [
-  { id: "water", title: "Drink 8 glasses of water", xp: 40 },
-  { id: "yoga", title: "Yoga", xp: 100 },
-  { id: "morning-routine", title: "Morning Routine (Brush + ice wash + face care)", xp: 100 },
-  { id: "face-yoga", title: "Jawline & Face Yoga", xp: 20 },
-  { id: "brush-twice", title: "Brush teeth twice", xp: 10 },
-  { id: "read", title: "Read / Social Content", xp: 40 },
-  { id: "journal", title: "Journaling", xp: 20 },
-  { id: "workout-pre-breakfast", title: "Sung Jin-Woo mini-workout (pre-breakfast)", xp: 25 },
-  { id: "workout-pre-lunch", title: "Sung Jin-Woo mini-workout (pre-lunch)", xp: 25 },
-  { id: "workout-pre-dinner", title: "Sung Jin-Woo mini-workout (pre-dinner)", xp: 25 },
+const initialQuestsData: Quest[] = [
+  { id: "water", title: "Drink 8 glasses of water", xp: 40, type: 'good' },
+  { id: "yoga", title: "Yoga", xp: 100, type: 'good' },
+  { id: "morning-routine", title: "Morning Routine (Brush + ice wash + face care)", xp: 100, type: 'good' },
+  { id: "face-yoga", title: "Jawline & Face Yoga", xp: 20, type: 'good' },
+  { id: "brush-twice", title: "Brush teeth twice", xp: 10, type: 'good' },
+  { id: "read", title: "Read / Social Content", xp: 40, type: 'good' },
+  { id: "journal", title: "Journaling", xp: 20, type: 'good' },
+  { id: "workout-pre-breakfast", title: "Sung Jin-Woo mini-workout (pre-breakfast)", xp: 25, type: 'good' },
+  { id: "workout-pre-lunch", title: "Sung Jin-Woo mini-workout (pre-lunch)", xp: 25, type: 'good' },
+  { id: "workout-pre-dinner", title: "Sung Jin-Woo mini-workout (pre-dinner)", xp: 25, type: 'good' },
 ];
 
+const questFormSchema = z.object({
+  title: z.string().min(3, { message: "Title must be at least 3 characters." }),
+  xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }),
+  isBadHabit: z.boolean().default(false),
+});
+
+
 const DailyQuests = () => {
+  const [quests, setQuests] = useState<Quest[]>(initialQuestsData);
   const [completedQuests, setCompletedQuests] = useState<Set<string>>(new Set());
+  const [isAddDialogOpen, setAddDialogOpen] = useState(false);
+
+  const form = useForm<z.infer<typeof questFormSchema>>({
+    resolver: zodResolver(questFormSchema),
+    defaultValues: {
+      title: "",
+      xp: 10,
+      isBadHabit: false,
+    },
+  });
+
+  function onAddQuest(values: z.infer<typeof questFormSchema>) {
+    const newQuest: Quest = {
+      id: new Date().toISOString(),
+      title: values.title,
+      xp: values.xp,
+      type: values.isBadHabit ? 'bad' : 'good',
+    };
+    setQuests(prev => [...prev, newQuest]);
+    form.reset();
+    setAddDialogOpen(false);
+  }
 
   const toggleQuest = (questId: string) => {
     setCompletedQuests(prev => {
@@ -41,14 +94,19 @@ const DailyQuests = () => {
     });
   };
 
-  const totalXpPossible = useMemo(() => initialQuests.reduce((sum, q) => sum + q.xp, 0), []);
+  const totalXpPossible = useMemo(() => quests.filter(q => q.type === 'good').reduce((sum, q) => sum + q.xp, 0), [quests]);
   const currentXp = useMemo(() => {
-    return initialQuests
+    return quests
       .filter(q => completedQuests.has(q.id))
-      .reduce((sum, q) => sum + q.xp, 0);
-  }, [completedQuests]);
+      .reduce((sum, q) => {
+        if (q.type === 'good') {
+          return sum + q.xp;
+        }
+        return sum - q.xp;
+      }, 0);
+  }, [completedQuests, quests]);
 
-  const xpProgress = totalXpPossible > 0 ? (currentXp / totalXpPossible) * 100 : 0;
+  const xpProgress = totalXpPossible > 0 ? (Math.max(0, currentXp) / totalXpPossible) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
@@ -58,9 +116,79 @@ const DailyQuests = () => {
           Back to Dashboard
         </Link>
       </Button>
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold">Daily Quests</h1>
-        <p className="text-muted-foreground">Complete these tasks to gain XP and level up.</p>
+      <header className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-4xl font-bold">Daily Quests</h1>
+          <p className="text-muted-foreground">Complete these tasks to gain XP and level up.</p>
+        </div>
+        <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> Add Quest
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Add New Quest</DialogTitle>
+              <DialogDescription>
+                Define a new task. Is it a good habit to build or a bad one to break?
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onAddQuest)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quest Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Meditate for 10 minutes" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="xp"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>XP Value</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g. 20" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="isBadHabit"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                       <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>This is a bad habit</FormLabel>
+                        <FormDescription>
+                          Check this if completing this quest means you performed a bad habit you want to avoid.
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="submit">Add Quest</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </header>
 
       <Card className="mb-8 bg-card/80 border-primary/20">
@@ -80,7 +208,7 @@ const DailyQuests = () => {
       </Card>
       
       <div className="space-y-4">
-        {initialQuests.map((quest) => (
+        {quests.map((quest) => (
           <Card key={quest.id} className={`bg-card/80 border-primary/20 transition-all ${completedQuests.has(quest.id) ? 'border-primary bg-primary/10' : ''}`}>
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -93,7 +221,9 @@ const DailyQuests = () => {
                   {quest.title}
                 </label>
               </div>
-              <div className="text-primary font-bold">+{quest.xp} XP</div>
+              <div className={`font-bold ${quest.type === 'good' ? 'text-primary' : 'text-destructive'}`}>
+                {quest.type === 'good' ? '+' : '-'}{quest.xp} XP
+              </div>
             </CardContent>
           </Card>
         ))}

@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -63,6 +62,7 @@ const Index = () => {
                   <span className="text-sm font-bold">XP</span>
                   <Progress value={25} className="h-4" />
                 </div>
+                <p className="text-right text-sm text-muted-foreground mt-1">250 / 1000 XP</p>
               </CardContent>
             </Card>
           </section>
