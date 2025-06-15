@@ -16,6 +16,8 @@ import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { User, Shield, Swords, Brain, Heart, Crosshair, ChevronsUp, DollarSign, Clock } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const onboardingSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -57,6 +59,7 @@ const statOptions = [
 const Onboarding = () => {
   const [step, setStep] = useState(1);
   const { updatePlayerProfile } = usePlayer();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const { control, handleSubmit, trigger, getValues, watch } = useForm<OnboardingValues>({
@@ -88,12 +91,46 @@ const Onboarding = () => {
   };
   const prevStep = () => setStep(s => s - 1);
 
-  const onSubmit = (data: OnboardingValues) => {
-    const { name, avatar, difficultyPreference, lifeAreas, timeBudget, ...stats } = data;
-    updatePlayerProfile(
-        { name, avatar, ...stats, coins: 20 }, 
-        { difficultyPreference, lifeAreas, timeBudget: timeBudget || {} }
-    );
+  const onSubmit = async (data: OnboardingValues) => {
+    const { name, avatar, difficultyPreference, lifeAreas, timeBudget, ...formStats } = data;
+
+    const statsToSave = {
+      name,
+      avatar,
+      ...formStats,
+      level: 1,
+      xp: 0,
+      xpNextLevel: 100,
+      class: "Novice",
+      title: "Newcomer",
+      skills: 0,
+      coins: 20,
+    };
+    const settingsToSave = { difficultyPreference, lifeAreas, timeBudget: timeBudget || {} };
+
+    // Update local state via context
+    updatePlayerProfile(statsToSave, settingsToSave);
+
+    if (!user) {
+      toast.error("Authentication error. Please log in again.");
+      return;
+    }
+
+    const { error } = await supabase.from('profiles').upsert({
+      id: user.id,
+      updated_at: new Date().toISOString(),
+      stats: statsToSave,
+      settings: settingsToSave,
+      onboarding_complete: true,
+    });
+
+    if (error) {
+      toast.error("Failed to save your profile to the cloud.");
+      console.error("Supabase profile save error:", error);
+      return;
+    }
+
+    localStorage.setItem("onboardingComplete", "true");
     toast.success(`Welcome, ${name}!`, {
         description: "You've been granted a welcome bonus of 20 shiny coins to start your journey. Spend them wisely!",
     });

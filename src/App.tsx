@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,17 +25,24 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <AuthProvider>
-        <PlayerProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <AppRoutes />
-          </TooltipProvider>
-        </PlayerProvider>
+        <PlayerProviderWrapper />
       </AuthProvider>
     </BrowserRouter>
   </QueryClientProvider>
 );
+
+const PlayerProviderWrapper = () => {
+  const { session } = useAuth();
+  return (
+    <PlayerProvider key={session?.user?.id || 'no-session'}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AppRoutes />
+      </TooltipProvider>
+    </PlayerProvider>
+  );
+};
 
 const AppRoutes = () => {
   const { session, loading } = useAuth();

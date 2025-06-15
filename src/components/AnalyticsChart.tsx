@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
@@ -33,11 +32,11 @@ const AnalyticsChart = () => {
             end: new Date(),
         });
 
-        const completedQuests = quests.filter(q => q.completed && q.completedAt);
+        const completedQuests = quests.filter(q => q.status === 'completed' && q.completionDate);
 
         return last7Days.map(day => {
             const questsOnDay = completedQuests.filter(q => 
-                isSameDay(parseISO(q.completedAt!), day)
+                isSameDay(parseISO(q.completionDate!), day)
             ).length;
             return {
                 date: format(day, 'EEE'),
