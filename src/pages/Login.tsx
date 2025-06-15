@@ -33,7 +33,12 @@ const Login = () => {
     });
     setLoading(false);
     if (error) {
-      toast.error(error.message);
+      console.error("Login error:", error);
+      if (error.message === "Email not confirmed") {
+        toast.error("Please check your email to confirm your account before logging in.");
+      } else {
+        toast.error(error.message);
+      }
     } else {
       toast.success("Logged in successfully!");
       navigate('/');
