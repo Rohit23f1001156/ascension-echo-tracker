@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from '@/components/ui/sonner';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 const customTaskSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -61,8 +62,16 @@ const CustomTasks = () => {
 
     return (
         <SharedLayout>
-            <div className="flex items-center justify-center min-h-[80vh]">
-                <Card className="w-full max-w-lg bg-card/80 border-primary/20">
+            <div className="max-w-lg mx-auto py-8">
+                 <div className="mb-4">
+                    <Button asChild variant="outline">
+                        <Link to="/">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Back to Dashboard
+                        </Link>
+                    </Button>
+                </div>
+                <Card className="w-full bg-card/80 border-primary/20">
                     <form onSubmit={handleSubmit(onSubmit)}>
                         <CardHeader>
                             <CardTitle className="text-3xl text-primary font-serif">Add Custom Task</CardTitle>

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,12 +31,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePlayer } from "@/context/PlayerContext";
-import { PlusCircle, Calendar as CalendarIcon } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { toast } from "@/components/ui/sonner";
 
 const questFormSchema = z.object({
@@ -45,6 +40,7 @@ const questFormSchema = z.object({
   xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }),
   isBadHabit: z.boolean().default(false),
   difficulty: z.enum(["Easy", "Medium", "Hard"]).default("Easy"),
+  isRecurring: z.boolean().default(false),
 });
 
 type AddQuestFormValues = z.infer<typeof questFormSchema>;
@@ -60,6 +56,7 @@ export function AddDailyQuestDialog() {
       xp: 10,
       isBadHabit: false,
       difficulty: "Easy",
+      isRecurring: false,
     },
   });
 
@@ -69,7 +66,7 @@ export function AddDailyQuestDialog() {
       xp: data.xp,
       type: data.isBadHabit ? 'bad' : 'good',
       difficulty: data.difficulty,
-      isRecurring: false, // For now, keeping it simple. We can add recurrence later.
+      isRecurring: data.isRecurring,
     });
     toast.success("New Quest Added!", { description: `You've added "${data.title}" to your daily quests.` });
     form.reset();
@@ -150,6 +147,26 @@ export function AddDailyQuestDialog() {
                     <FormLabel>Is this a bad habit?</FormLabel>
                     <FormDescription>
                       Completing a bad habit will deduct XP.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="isRecurring"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Is this a recurring quest?</FormLabel>
+                    <FormDescription>
+                      Recurring quests will reset every day.
                     </FormDescription>
                   </div>
                   <FormControl>
