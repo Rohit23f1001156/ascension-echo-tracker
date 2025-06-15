@@ -13,29 +13,32 @@ import Journal from "./pages/Journal";
 import CalendarPage from "./pages/CalendarPage";
 import BossFights from "./pages/BossFights";
 import Settings from "./pages/Settings";
+import { PlayerProvider } from "./context/PlayerContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/daily-quests" element={<DailyQuests />} />
-          <Route path="/skill-tree" element={<SkillTree />} />
-          <Route path="/stats" element={<Stats />} />
-          <Route path="/journal" element={<Journal />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/boss-fights" element={<BossFights />} />
-          <Route path="/settings" element={<Settings />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <PlayerProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/daily-quests" element={<DailyQuests />} />
+            <Route path="/skill-tree" element={<SkillTree />} />
+            <Route path="/stats" element={<Stats />} />
+            <Route path="/journal" element={<Journal />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/boss-fights" element={<BossFights />} />
+            <Route path="/settings" element={<Settings />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </PlayerProvider>
   </QueryClientProvider>
 );
 

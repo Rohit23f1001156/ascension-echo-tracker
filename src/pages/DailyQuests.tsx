@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -28,26 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-
-interface Quest {
-  id: string;
-  title: string;
-  xp: number;
-  type: 'good' | 'bad';
-}
-
-const initialQuestsData: Quest[] = [
-  { id: "water", title: "Drink 8 glasses of water", xp: 40, type: 'good' },
-  { id: "yoga", title: "Yoga", xp: 100, type: 'good' },
-  { id: "morning-routine", title: "Morning Routine (Brush + ice wash + face care)", xp: 100, type: 'good' },
-  { id: "face-yoga", title: "Jawline & Face Yoga", xp: 20, type: 'good' },
-  { id: "brush-twice", title: "Brush teeth twice", xp: 10, type: 'good' },
-  { id: "read", title: "Read / Social Content", xp: 40, type: 'good' },
-  { id: "journal", title: "Journaling", xp: 20, type: 'good' },
-  { id: "workout-pre-breakfast", title: "Sung Jin-Woo mini-workout (pre-breakfast)", xp: 25, type: 'good' },
-  { id: "workout-pre-lunch", title: "Sung Jin-Woo mini-workout (pre-lunch)", xp: 25, type: 'good' },
-  { id: "workout-pre-dinner", title: "Sung Jin-Woo mini-workout (pre-dinner)", xp: 25, type: 'good' },
-];
+import { usePlayer, Quest } from "@/context/PlayerContext";
 
 const questFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -57,8 +37,7 @@ const questFormSchema = z.object({
 
 
 const DailyQuests = () => {
-  const [quests, setQuests] = useState<Quest[]>(initialQuestsData);
-  const [completedQuests, setCompletedQuests] = useState<Set<string>>(new Set());
+  const { quests, completedQuests, addQuest, toggleQuest } = usePlayer();
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
 
   const form = useForm<z.infer<typeof questFormSchema>>({
@@ -71,42 +50,38 @@ const DailyQuests = () => {
   });
 
   function onAddQuest(values: z.infer<typeof questFormSchema>) {
-    const newQuest: Quest = {
-      id: new Date().toISOString(),
+    addQuest({
       title: values.title,
       xp: values.xp,
       type: values.isBadHabit ? 'bad' : 'good',
-    };
-    setQuests(prev => [...prev, newQuest]);
+    });
     form.reset();
     setAddDialogOpen(false);
   }
 
-  const toggleQuest = (questId: string) => {
-    setCompletedQuests(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(questId)) {
-        newSet.delete(questId);
-      } else {
-        newSet.add(questId);
-      }
-      return newSet;
-    });
-  };
-
   const totalXpPossible = useMemo(() => quests.filter(q => q.type === 'good').reduce((sum, q) => sum + q.xp, 0), [quests]);
-  const currentXp = useMemo(() => {
+  const currentXpEarned = useMemo(() => {
     return quests
       .filter(q => completedQuests.has(q.id))
       .reduce((sum, q) => {
         if (q.type === 'good') {
           return sum + q.xp;
         }
-        return sum - q.xp;
+        // For this page's display, we only show positive XP earned.
+        // The total XP calculation is handled in the context.
+        return sum;
+      }, 0);
+  }, [completedQuests, quests]);
+  
+  const currentNetXp = useMemo(() => {
+    return quests
+      .filter(q => completedQuests.has(q.id))
+      .reduce((sum, q) => {
+        return sum + (q.type === 'good' ? q.xp : -q.xp);
       }, 0);
   }, [completedQuests, quests]);
 
-  const xpProgress = totalXpPossible > 0 ? (Math.max(0, currentXp) / totalXpPossible) * 100 : 0;
+  const xpProgress = totalXpPossible > 0 ? (currentXpEarned / totalXpPossible) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
@@ -195,7 +170,7 @@ const DailyQuests = () => {
         <CardHeader>
           <CardTitle>Daily Progress</CardTitle>
           <CardDescription>
-            You've earned {currentXp} / {totalXpPossible} XP today.
+            You've gained a net of {currentNetXp} XP today. Total possible from good habits: {totalXpPossible} XP.
           </CardDescription>
         </CardHeader>
         <CardContent>

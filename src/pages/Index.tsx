@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -22,6 +21,7 @@ import {
   Brain,
   Star,
 } from "lucide-react";
+import { usePlayer } from "@/context/PlayerContext";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
@@ -34,18 +34,7 @@ const quickActions = [
 ];
 
 const Index = () => {
-  const systemStats = {
-    title: "Beginner",
-    class: "NA",
-    level: 0,
-    xp: 0,
-    xpNextLevel: 1000,
-    strength: 2,
-    stamina: 5,
-    concentration: 1,
-    intelligence: 1,
-    skills: 1,
-  };
+  const { stats: systemStats } = usePlayer();
 
   return (
     <div
