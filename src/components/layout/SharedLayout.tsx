@@ -1,11 +1,16 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { usePlayer } from '@/context/PlayerContext';
 import LevelUpDialog from '@/components/LevelUpDialog';
+import Confetti from 'react-confetti';
 
 const SharedLayout = ({ children }: { children: React.ReactNode }) => {
   const { stats, levelUpData, clearLevelUpData } = usePlayer();
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -15,10 +20,19 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
 
     window.addEventListener('mousemove', handleMouseMove);
 
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       document.documentElement.style.removeProperty('--mouse-x');
       document.documentElement.style.removeProperty('--mouse-y');
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 
@@ -26,6 +40,7 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
     <div
       className="min-h-screen bg-background text-foreground relative overflow-hidden"
     >
+      {levelUpData && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} numberOfPieces={400} tweenDuration={10000} />}
       {/* Spotlight Effect */}
       <div 
         className="pointer-events-none fixed inset-0 z-[3] transition duration-300"
@@ -34,10 +49,8 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
         }}
       ></div>
       
-      {/* Enhanced Auras */}
-      <div className="purple-aura-1"></div>
-      <div className="purple-aura-2"></div>
-      <div className="central-aura"></div>
+      {/* Shadow Gate Portal */}
+      <div className="shadow-gate-portal"></div>
       <div className="blue-flow-border"></div>
       
       <div className="min-h-screen bg-black/70 backdrop-blur-sm relative z-10">

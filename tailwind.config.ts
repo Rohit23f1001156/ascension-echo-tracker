@@ -99,11 +99,16 @@ export default {
             transform: "translateY(0)"
           }
         },
+        'pulse-strong': {
+          '0%, 100%': { transform: 'scale(1)', opacity: '1' },
+          '50%': { transform: 'scale(1.1)', opacity: '0.8' },
+        },
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-in': 'fade-in 0.3s ease-out',
+        'pulse-strong': 'pulse-strong 1.5s ease-in-out infinite',
 			}
 		}
 	},

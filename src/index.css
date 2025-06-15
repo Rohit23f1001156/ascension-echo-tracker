@@ -1,11 +1,9 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* // ... keep existing code (root and dark theme definitions) */
 @layer base {
   :root {
     --background: 240 10% 3.9%;
@@ -92,14 +90,12 @@
   }
 }
 
-@keyframes heartbeat-pulse {
-  0%, 100% {
-    transform: scale(0.95);
-    opacity: 0.5;
+@keyframes swirl {
+  from {
+    transform: rotate(0deg);
   }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.8;
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -115,43 +111,20 @@
   }
 }
 
-.purple-aura-1, .purple-aura-2 {
-  position: fixed;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(138, 43, 226, 0.25) 0%, rgba(138, 43, 226, 0) 70%);
-  animation: aura-pulse 12s infinite ease-in-out;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.purple-aura-1 {
-  width: 180vw;
-  height: 180vh;
-  top: -40vh;
-  left: -40vw;
-}
-
-.purple-aura-2 {
-  width: 150vw;
-  height: 150vh;
-  bottom: -35vh;
-  right: -35vw;
-  animation-delay: -6s;
-}
-
-.central-aura {
+.shadow-gate-portal {
   position: fixed;
   top: 50%;
   left: 50%;
-  width: 60vw;
-  height: 60vw;
-  margin-top: -30vw;
-  margin-left: -30vw;
+  width: 150vmax;
+  height: 150vmax;
+  margin-top: -75vmax;
+  margin-left: -75vmax;
+  background: radial-gradient(circle, transparent 30%, rgba(74, 0, 224, 0.2) 50%, rgba(138, 43, 226, 0.4) 70%, #05020a 90%);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(138, 43, 226, 0.3) 0%, rgba(138, 43, 226, 0) 65%);
-  animation: heartbeat-pulse 4s infinite ease-in-out;
-  pointer-events: none;
-  z-index: 2;
+  animation: swirl 40s linear infinite, aura-pulse 10s infinite ease-in-out alternate;
+  opacity: 0.6;
+  z-index: 0;
+  mix-blend-mode: hard-light;
 }
 
 .blue-flow-border {

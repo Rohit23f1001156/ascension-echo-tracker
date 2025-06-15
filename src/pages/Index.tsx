@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import {
   CardHeader,
@@ -95,7 +96,7 @@ const Index = () => {
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
                   {/* Level */}
                   <div className="text-center flex-shrink-0">
-                    <p className="text-7xl font-bold text-primary">{systemStats.level}</p>
+                    <p className={`text-7xl font-bold text-primary transition-all duration-500 ${levelUpAnimation ? 'animate-pulse-strong' : ''}`}>{systemStats.level}</p>
                     <p className="text-muted-foreground tracking-widest">LEVEL</p>
                   </div>
 

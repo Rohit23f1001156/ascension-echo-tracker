@@ -22,7 +22,7 @@ const LevelUpDialog = ({ isOpen, onClose, levelUpInfo }: LevelUpDialogProps) => 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-background/80 backdrop-blur-sm border-primary/50 text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-3xl text-center text-primary font-serif">
+          <DialogTitle className="text-3xl text-center text-primary font-serif animate-pulse-strong">
             🆙 LEVEL UP!
           </DialogTitle>
           <DialogDescription className="text-center text-xl pt-2">
