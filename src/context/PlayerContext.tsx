@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 // Interfaces
@@ -125,7 +126,8 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const updatePlayerProfile = (newStats: Partial<SystemStats>, newProfile: Partial<UserProfile>) => {
     setStats(prev => ({ ...prev, ...newStats }));
     setProfile(prev => ({ ...prev, ...newProfile }));
-    localStorage.setItem('onboardingComplete', 'true');
+    // The following line is commented out to ensure the app starts from onboarding on every refresh, as requested.
+    // localStorage.setItem('onboardingComplete', 'true');
   };
 
   const toggleQuest = (questId: string) => {

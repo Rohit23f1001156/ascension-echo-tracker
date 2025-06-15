@@ -137,10 +137,10 @@ const Index = () => {
                 <Card
                   className="system-card h-full cursor-pointer"
                 >
-                  <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
+                  <div className="system-card-inner">
                     <action.icon className="w-8 h-8 text-primary" />
                     <p className="font-semibold text-center">{action.title}</p>
-                  </CardContent>
+                  </div>
                 </Card>
               </Link>
             ))}
