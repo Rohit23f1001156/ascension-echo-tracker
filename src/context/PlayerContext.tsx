@@ -831,7 +831,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         leveledUp = true;
         newLevel++;
         newXp -= newXpNextLevel;
-        newXpNextLevel = 1000 + newLevel * 500; // New XP formula
+        newXpNextLevel = 1000 + newLevel * 500;
         newStatPointsToAllocate += 1;
       }
 
@@ -845,33 +845,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         awardedPerk = {
           ...randomPerk,
           id: new Date().toISOString(),
-          expiry: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+          expiry: Date.now() + 24 * 60 * 60 * 1000,
         };
         newBuffs.push(awardedPerk);
         setLevelUpData({ newLevel, perk: awardedPerk });
         setLevelUpAnimation(true);
         setTimeout(() => setLevelUpAnimation(false), 3000);
       }
-
-      // Streak logic
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-      let newStreak = prevStats.streak || 0;
-      let newLastActivityDate = prevStats.lastActivityDate;
       
-      if (xpChange > 0) { // Only count streak for positive actions
-          if (newLastActivityDate !== today) { // And only once per day
-              if (newLastActivityDate === yesterday) {
-                  newStreak++;
-              } else {
-                  newStreak = 1; // Reset streak if a day was missed
-              }
-              newLastActivityDate = today;
-          }
-      }
-
-      const newCoins = prevStats.coins + coinsChange;
-
       const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];
       const titleIndex = Math.min(Math.floor(newLevel / 10), titles.length - 1);
       const newTitle = titles[titleIndex];
@@ -882,16 +863,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         xp: Math.max(0, newXp),
         xpNextLevel: newXpNextLevel,
         title: newTitle,
-        coins: Math.max(0, newCoins),
-        strength: prevStats.strength,
-        stamina: prevStats.stamina,
-        concentration: prevStats.concentration,
-        intelligence: prevStats.intelligence,
-        wealth: prevStats.wealth,
-        skills: prevStats.skills,
         statPointsToAllocate: newStatPointsToAllocate,
-        streak: newStreak,
-        lastActivityDate: newLastActivityDate,
         buffs: newBuffs,
       };
     });
@@ -904,8 +876,11 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     const isCompletedToday = habit.lastCompleted ? isToday(new Date(habit.lastCompleted)) : false;
     const now = new Date();
     let xpChange = 0;
+    let coinsChange = 0;
     const difficultyMultipliers = { Easy: 10, Medium: 15, Hard: 20 };
+    const coinRewards = { Easy: 2, Medium: 5, Hard: 10 };
     const baseXP = difficultyMultipliers[habit.difficulty];
+    const baseCoins = coinRewards[habit.difficulty];
 
     if (isCompletedToday) {
         // --- UNDO ---
@@ -913,6 +888,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         const updatedHabit = { ...habit, streak: lastStreak, lastCompleted: null };
         setHabits(prev => prev.map(h => h.id === habitId ? updatedHabit : h));
         xpChange = -baseXP;
+        coinsChange = -baseCoins;
         toast.info(`Undid progress for "${habit.title}".`);
     } else {
         // --- COMPLETE ---
@@ -922,21 +898,26 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         }
 
         xpChange = baseXP;
+        coinsChange = baseCoins;
         let streakBonus = 0;
+        let streakCoinBonus = 0;
 
         if (newStreak > 0 && newStreak % 7 === 0) {
             streakBonus = 50; // 7-day streak bonus
+            streakCoinBonus = 25;
             xpChange += streakBonus;
-            toast.success(`7-Day Streak Bonus! +${streakBonus} XP!`);
+            coinsChange += streakCoinBonus;
+            toast.success(`7-Day Streak Bonus! +${streakBonus} XP & +${streakCoinBonus} Coins!`);
         }
 
         const updatedHabit = { ...habit, streak: newStreak, lastCompleted: now.toISOString() };
         setHabits(prev => prev.map(h => h.id === habitId ? updatedHabit : h));
-        toast.success(`Completed: "${habit.title}"! +${xpChange} XP`);
+        toast.success(`Completed: "${habit.title}"! +${xpChange} XP & +${coinsChange} Coins`);
     }
 
     setStats(prevStats => {
         let newXp = prevStats.xp + xpChange;
+        const newCoins = prevStats.coins + coinsChange;
         let newLevel = prevStats.level;
         let newXpNextLevel = prevStats.xpNextLevel;
         let newStatPointsToAllocate = prevStats.statPointsToAllocate;
@@ -961,6 +942,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
             level: newLevel,
             xpNextLevel: newXpNextLevel,
             statPointsToAllocate: newStatPointsToAllocate,
+            coins: Math.max(0, newCoins),
         };
     });
   };
