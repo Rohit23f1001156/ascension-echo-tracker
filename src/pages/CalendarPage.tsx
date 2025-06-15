@@ -1,41 +1,76 @@
 
 import React, { useState, useMemo } from 'react';
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, CheckCircle } from "lucide-react";
-import { usePlayer } from '@/context/PlayerContext';
-import { format, isSameDay } from 'date-fns';
+import { ArrowLeft } from 'lucide-react';
 import SharedLayout from '@/components/layout/SharedLayout';
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
+import { usePlayer } from '@/context/PlayerContext';
+import { isSameDay, parseISO } from 'date-fns';
+import DayDetailModal from '@/components/DayDetailModal';
+import type { Quest, JournalEntry } from '@/context/PlayerContext';
 
 const CalendarPage = () => {
-  const { quests, completedQuests: completedQuestIds } = usePlayer();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const { quests, questLog, journalEntries } = usePlayer();
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  const completedQuestsByDate = useMemo(() => {
-    const map = new Map<string, any[]>();
-    const completedQuests = quests.filter(q => completedQuestIds.has(q.id));
+  const completedOnDay = (date: Date): number => {
+    return questLog.filter(log => isSameDay(new Date(log.date), date)).length;
+  };
 
-    completedQuests.forEach(quest => {
-      // For now, we assume quests are completed 'today'.
-      // A more robust system would timestamp completions.
-      const dateStr = format(new Date(), 'yyyy-MM-dd');
-      if (!map.has(dateStr)) {
-        map.set(dateStr, []);
+  const dayModifiers = useMemo(() => {
+    const modifiers: Record<string, Date[]> = {};
+    questLog.forEach(log => {
+      const date = new Date(log.date);
+      // Create a modifier for any day with at least one completion
+      const key = 'completed';
+      if (!modifiers[key]) {
+        modifiers[key] = [];
       }
-      map.get(dateStr)?.push(quest);
+       if(!modifiers[key].some(d => isSameDay(d, date))) {
+         modifiers[key].push(date);
+       }
     });
-    return map;
-  }, [completedQuestIds, quests]);
+    return modifiers;
+  }, [questLog]);
 
-  const selectedDayQuests = useMemo(() => {
-    if (!selectedDate) return [];
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    return completedQuestsByDate.get(dateStr) || [];
-  }, [selectedDate, completedQuestsByDate]);
-  
-  const daysWithCompletedQuests = Array.from(completedQuestsByDate.keys()).map(dateStr => new Date(dateStr));
+  const modifierStyles = {
+    completed: { 
+      backgroundColor: 'rgba(34, 197, 94, 0.2)',
+      border: '1px solid rgba(34, 197, 94, 0.4)',
+     },
+  };
+
+  const handleDayClick = (day: Date, modifiers: { completed?: boolean }) => {
+    // We only want to open the modal for days that have activity
+    if (modifiers.completed) {
+      setSelectedDate(day);
+    }
+  };
+
+  const selectedDayData = useMemo(() => {
+    if (!selectedDate) {
+      return { completedQuests: [], journalEntry: null };
+    }
+
+    const completedQuestLogsOnDay = questLog.filter(log => isSameDay(new Date(log.date), selectedDate));
+    
+    const completedQuestIdsOnDay = new Set(
+      completedQuestLogsOnDay.map(log => log.questId)
+    );
+    
+    // We need to associate the original XP from the quest definition, not the final calculated XP from the log
+    const completedQuestsOnDay: Quest[] = quests.filter(q => completedQuestIdsOnDay.has(q.id));
+
+    const journalEntryOnDay: JournalEntry | null = journalEntries.find(entry => 
+      isSameDay(parseISO(entry.createdAt), selectedDate)
+    ) || null;
+
+    return { completedQuests: completedQuestsOnDay, journalEntry: journalEntryOnDay };
+  }, [selectedDate, questLog, quests, journalEntries]);
+
 
   return (
     <SharedLayout>
@@ -47,66 +82,40 @@ const CalendarPage = () => {
           </Link>
         </Button>
       </div>
-       <header className="mb-8">
+
+      <header className="mb-8">
         <div>
           <h1 className="text-4xl font-bold">Shadow Gate Log</h1>
-          <p className="text-muted-foreground">Track your battles, victories, and time.</p>
+          <p className="text-muted-foreground">Tracking your battles, victories, and time.</p>
         </div>
       </header>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        <div className="md:col-span-2">
-          <Card className="bg-card/80 border-primary/20">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              className="p-0"
-              classNames={{
-                month: "w-full space-y-4",
-                table: "w-full border-collapse space-y-1",
-                head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.8rem]",
-                row: "flex w-full mt-2",
-                cell: "h-9 w-full text-center text-sm p-0 relative",
-                day: "h-14 w-full p-0 font-normal aria-selected:opacity-100",
-              }}
-              modifiers={{
-                completed: daysWithCompletedQuests,
-              }}
-              modifiersStyles={{
-                completed: { 
-                  color: '#a78bfa',
-                  backgroundColor: 'rgba(138, 43, 226, 0.1)',
-                  fontWeight: 'bold'
-                },
-              }}
-            />
-          </Card>
-        </div>
-        <div>
-          <Card className="bg-card/80 border-primary/20">
-            <CardHeader>
-              <CardTitle>
-                {selectedDate ? format(selectedDate, 'PPP') : 'Select a day'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {selectedDayQuests.length > 0 ? (
-                <ul className="space-y-2">
-                  {selectedDayQuests.map(quest => (
-                    <li key={quest.id} className="text-sm flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-primary" />
-                      <span>{quest.title}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">No quests completed on this day.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card className="bg-card/80 border-primary/20">
+        <CardHeader>
+          <CardTitle>Progress Calendar</CardTitle>
+        </CardHeader>
+        <CardContent className="flex justify-center">
+          <DayPicker
+            mode="single"
+            onDayClick={handleDayClick}
+            modifiers={dayModifiers}
+            modifierStyles={modifierStyles}
+            className="text-base sm:text-lg"
+            classNames={{
+              day: 'h-10 w-10 sm:h-12 sm:w-12 text-base rounded-full',
+              head_cell: 'w-10 sm:w-12',
+            }}
+          />
+        </CardContent>
+      </Card>
+      
+      <DayDetailModal 
+        isOpen={!!selectedDate}
+        onClose={() => setSelectedDate(null)}
+        date={selectedDate}
+        quests={selectedDayData.completedQuests}
+        journalEntry={selectedDayData.journalEntry}
+      />
     </SharedLayout>
   );
 };
