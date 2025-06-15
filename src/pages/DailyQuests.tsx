@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Flame, Plus } from "lucide-react";
+import { ArrowLeft, Flame, Plus, Repeat } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { usePlayer, Quest } from "@/context/PlayerContext";
 import { toast } from "@/components/ui/sonner";
 
@@ -34,6 +41,7 @@ const questFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }),
   isBadHabit: z.boolean().default(false),
+  isRecurring: z.enum(["none", "daily", "weekly"]).default("none"),
 });
 
 const DailyQuests = () => {
@@ -47,6 +55,7 @@ const DailyQuests = () => {
       title: "",
       xp: 10,
       isBadHabit: false,
+      isRecurring: "none",
     },
   });
 
@@ -55,6 +64,7 @@ const DailyQuests = () => {
       title: values.title,
       xp: values.xp,
       type: values.isBadHabit ? 'bad' : 'good',
+      isRecurring: values.isRecurring === 'none' ? undefined : values.isRecurring
     });
     form.reset();
     setAddDialogOpen(false);
@@ -128,7 +138,7 @@ const DailyQuests = () => {
             <DialogHeader>
               <DialogTitle>Add New Quest</DialogTitle>
               <DialogDescription>
-                Define a new task. Is it a good habit to build or a bad one to break?
+                Define a new task. Make it a recurring habit to build streaks!
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -155,6 +165,31 @@ const DailyQuests = () => {
                       <FormControl>
                         <Input type="number" placeholder="e.g. 20" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="isRecurring"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Recurrence</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select how often this quest repeats" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Not Recurring</SelectItem>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Set a quest to repeat daily or weekly to build habits.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -208,18 +243,32 @@ const DailyQuests = () => {
         {quests.map((quest) => (
           <Card key={quest.id} className={`bg-card/80 border-primary/20 transition-all ${completedQuests.has(quest.id) ? 'border-primary bg-primary/10' : ''}`}>
             <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-1">
                 <Checkbox
                   id={quest.id}
                   checked={completedQuests.has(quest.id)}
                   onCheckedChange={() => toggleQuest(quest.id)}
+                  disabled={quest.isRecurring && completedQuests.has(quest.id)}
                 />
                 <label htmlFor={quest.id} className="font-medium cursor-pointer flex-1">
                   {quest.title}
                 </label>
               </div>
-              <div className={`font-bold ${quest.type === 'good' ? 'text-primary' : 'text-destructive'}`}>
-                {quest.type === 'good' ? '+' : '-'}{quest.xp} XP
+              <div className="flex items-center gap-4">
+                {quest.isRecurring && (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Repeat className="w-3.5 h-3.5" />
+                    {(quest.streak || 0) > 0 && (
+                      <div className="flex items-center gap-1 text-orange-400 font-semibold">
+                         <Flame className="w-4 h-4" />
+                         <span>{quest.streak}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className={`font-bold ${quest.type === 'good' ? 'text-primary' : 'text-destructive'}`}>
+                  {quest.type === 'good' ? '+' : '-'}{quest.xp} XP
+                </div>
               </div>
             </CardContent>
           </Card>

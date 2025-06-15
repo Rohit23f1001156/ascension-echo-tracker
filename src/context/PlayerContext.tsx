@@ -3,6 +3,8 @@ import { toast } from '@/components/ui/sonner';
 import { skillTreeData as initialSkillTreeData, SkillPath, SkillNode } from '@/data/skillTreeData';
 import ReactConfetti from 'react-confetti';
 import FullScreenLevelUpAnimation from '@/components/FullScreenLevelUpAnimation';
+import { isToday, isYesterday } from 'date-fns';
+import { Flame } from 'lucide-react';
 
 // Interfaces
 export interface Quest {
@@ -11,6 +13,9 @@ export interface Quest {
   xp: number;
   type: 'good' | 'bad';
   category: 'strength' | 'stamina' | 'concentration' | 'intelligence' | 'wealth' | 'general';
+  isRecurring?: 'daily' | 'weekly';
+  lastCompleted?: string | null;
+  streak?: number;
 }
 
 export interface Buff {
@@ -52,7 +57,7 @@ interface PlayerContextType {
   profile: UserProfile;
   quests: Quest[];
   completedQuests: Set<string>;
-  addQuest: (questData: Omit<Quest, 'id' | 'category'> & { category?: Quest['category'] }) => void;
+  addQuest: (questData: Omit<Quest, 'id' | 'category' | 'lastCompleted' | 'streak'> & { category?: Quest['category'], isRecurring?: 'daily' | 'weekly' }) => void;
   toggleQuest: (questId: string) => void;
   updatePlayerProfile: (stats: Partial<SystemStats>, profile: Partial<UserProfile>) => void;
   levelUpData: { newLevel: number, perk: Buff | null } | null;
@@ -239,6 +244,45 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     }));
   });
 
+  // Effect to reset recurring quests based on dates
+  useEffect(() => {
+    let questsNeedUpdate = false;
+    let completedQuestsNeedUpdate = false;
+
+    const updatedQuests = [...quests];
+    const updatedCompletedQuests = new Set(completedQuests);
+
+    quests.forEach((quest, index) => {
+      if (quest.isRecurring && quest.lastCompleted) {
+        const lastCompletedDate = new Date(quest.lastCompleted);
+
+        // Daily quests
+        if (quest.isRecurring === 'daily' && !isToday(lastCompletedDate)) {
+          // If it was completed and the day has passed, un-complete it for the new day
+          if (completedQuests.has(quest.id)) {
+            updatedCompletedQuests.delete(quest.id);
+            completedQuestsNeedUpdate = true;
+          }
+          // If the last completion was not yesterday, reset the streak
+          if (!isYesterday(lastCompletedDate)) {
+            updatedQuests[index] = { ...quest, streak: 0 };
+            questsNeedUpdate = true;
+          }
+        }
+        
+        // TODO: Weekly quest logic would go here
+      }
+    });
+
+    if (questsNeedUpdate) {
+      setQuests(updatedQuests);
+    }
+    if (completedQuestsNeedUpdate) {
+      setCompletedQuests(updatedCompletedQuests);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only on app startup
+
   useEffect(() => {
     localStorage.setItem('playerStats', JSON.stringify(stats));
   }, [stats]);
@@ -275,12 +319,19 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('skillTree', JSON.stringify(skillTree));
   }, [skillTree]);
 
-  const addQuest = (questData: Omit<Quest, 'id' | 'category'> & { category?: Quest['category'] }) => {
+  const addQuest = (questData: Omit<Quest, 'id' | 'category' | 'lastCompleted' | 'streak'> & { category?: Quest['category'], isRecurring?: 'daily' | 'weekly' }) => {
+    const { isRecurring, ...restOfQuestData } = questData;
     const newQuest: Quest = {
       id: new Date().toISOString(),
-      ...questData,
+      ...restOfQuestData,
       category: questData.category || 'general',
+      type: questData.type || 'good',
     };
+    if (isRecurring) {
+      newQuest.isRecurring = isRecurring;
+      newQuest.streak = 0;
+      newQuest.lastCompleted = null;
+    }
     setQuests(prev => [...prev, newQuest]);
   };
 
@@ -512,10 +563,47 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     const quest = quests.find(q => q.id === questId);
     if (!quest) return;
 
+    const isCompleting = !completedQuests.has(quest.id);
+    let questForXpCalc = { ...quest };
+
+    // Handle recurring quest logic BEFORE stat updates
+    if (isCompleting && quest.isRecurring) {
+      const now = new Date();
+      let newStreak = quest.streak || 0;
+      const lastCompletedDate = quest.lastCompleted ? new Date(quest.lastCompleted) : null;
+
+      if (lastCompletedDate) {
+        if (quest.isRecurring === 'daily') {
+          if (isYesterday(lastCompletedDate)) {
+            newStreak++;
+          } else if (!isToday(lastCompletedDate)) {
+            newStreak = 1; // It was missed, so reset streak
+          }
+        }
+        // Weekly logic would go here
+      } else {
+        newStreak = 1; // First time completing
+      }
+
+      if (newStreak > (quest.streak || 0) && newStreak > 1) {
+        toast.info(
+          <div className="flex items-center gap-2">
+            <Flame className="h-4 w-4 text-orange-400" />
+            <span>{`"${quest.title}" streak: ${newStreak} days!`}</span>
+          </div>
+        );
+      }
+
+      const updatedQuest = { ...quest, lastCompleted: now.toISOString(), streak: newStreak };
+      questForXpCalc = updatedQuest;
+      setQuests(prevQuests => prevQuests.map(q => q.id === questId ? updatedQuest : q));
+    }
+
     setStats(prevStats => {
       // Apply multipliers for completing a quest
-      let finalXp = quest.xp;
-      if (!newCompletedSet.has(questId) && quest.type === 'good') {
+      let finalXp = questForXpCalc.xp;
+      if (isCompleting && questForXpCalc.type === 'good') {
+        // Apply stat bonus
         const statMultiplier = 0.05; // 5% bonus per stat point
         const statBonus = (statValue: number) => statValue * statMultiplier;
         
@@ -530,6 +618,15 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
         if (statToBoost) {
           finalXp *= (1 + statBonus(prevStats[statToBoost]));
+        }
+
+        // Apply streak bonus for recurring quests
+        if (questForXpCalc.isRecurring && (questForXpCalc.streak || 0) > 1) {
+            const streakBonus = Math.min(0.5, ((questForXpCalc.streak || 0) - 1) * 0.05); // 5% per day, max 50%
+            finalXp *= (1 + streakBonus);
+            if (streakBonus > 0) {
+                toast.success(`+${Math.round(streakBonus * 100)}% streak bonus!`);
+            }
         }
 
         // Apply buffs
