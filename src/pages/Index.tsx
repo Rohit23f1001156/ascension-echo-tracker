@@ -140,16 +140,8 @@ const Index = () => {
           </HoverTiltWrapper>
         </section>
 
-        {/* Weekly Summary */}
-        <section className="mb-8">
-          <WeeklySummary />
-        </section>
-        
-        {/* Habit War */}
-        <HabitWar />
-
         {/* Quick Actions */}
-        <section>
+        <section className="mb-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {quickActions.map((action) => (
               <SystemCard
@@ -177,6 +169,14 @@ const Index = () => {
               </AlertDialogContent>
             </AlertDialog>
           </div>
+        </section>
+
+        {/* Habit War */}
+        <HabitWar />
+        
+        {/* Weekly Summary */}
+        <section className="mt-8">
+          <WeeklySummary />
         </section>
       </div>
     </SharedLayout>

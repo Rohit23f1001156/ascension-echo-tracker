@@ -3,7 +3,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { usePlayer } from '@/context/PlayerContext';
+import { usePlayer, Habit } from '@/context/PlayerContext';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -38,7 +38,7 @@ const habitFormSchema = z.object({
   difficulty: z.enum(['Easy', 'Medium', 'Hard']),
 });
 
-type HabitFormValues = z.infer<typeof habitFormSchema>;
+type HabitFormValues = Omit<Habit, 'id' | 'streak' | 'lastCompleted'>;
 
 const AddHabitDialog = () => {
   const { addHabit } = usePlayer();
@@ -62,7 +62,7 @@ const AddHabitDialog = () => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="absolute top-4 right-4">
+        <Button size="sm">
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Habit
         </Button>

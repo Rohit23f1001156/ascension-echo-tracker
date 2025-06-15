@@ -5,6 +5,7 @@ import { usePlayer } from '@/context/PlayerContext';
 import LevelUpDialog from '@/components/LevelUpDialog';
 import Confetti from 'react-confetti';
 import { Link } from 'react-router-dom';
+import Header from './Header';
 
 const SharedLayout = ({ children }: { children: React.ReactNode }) => {
   const { stats, levelUpData, clearLevelUpData } = usePlayer();
@@ -39,7 +40,7 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div
-      className="min-h-screen bg-background text-foreground relative overflow-hidden"
+      className="min-h-screen bg-background text-foreground relative"
     >
       {levelUpData && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} numberOfPieces={400} tweenDuration={10000} />}
       {/* Spotlight Effect */}
@@ -70,10 +71,13 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
         )}
       </div>
       
-      <div className="min-h-screen bg-black/70 backdrop-blur-sm relative z-10">
-        <div className="container mx-auto px-4 py-8">
-          {children}
-        </div>
+      <div className="relative z-20 flex min-h-screen flex-col">
+        <Header />
+        <main className="flex-1 bg-black/70 backdrop-blur-sm">
+          <div className="container mx-auto px-4 py-8">
+            {children}
+          </div>
+        </main>
       </div>
       <LevelUpDialog
         isOpen={!!levelUpData}
