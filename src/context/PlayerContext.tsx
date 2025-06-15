@@ -162,7 +162,8 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         try {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed)) {
-                return new Map(parsed);
+                // This converts arrays back into Sets, and handles malformed data from older versions.
+                return new Map(parsed.map(([key, value]) => [key, new Set(Array.isArray(value) ? value : [])]));
             }
         } catch (e) {
             console.error("Failed to parse activeSkillQuests from localStorage", e);
@@ -192,12 +193,16 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   }, [questLog]);
 
   useEffect(() => {
-    localStorage.setItem('masteredSkills', JSON.stringify(Array.from(masteredSkills)));
-  }, [masteredSkills]);
+    // Correctly serialize the Map of Sets to a JSON-compatible format.
+    const serializable = JSON.stringify(
+      Array.from(activeSkillQuests.entries()).map(([key, value]) => [key, Array.from(value)])
+    );
+    localStorage.setItem('activeSkillQuests', serializable);
+  }, [activeSkillQuests]);
 
   useEffect(() => {
-    localStorage.setItem('activeSkillQuests', JSON.stringify(Array.from(activeSkillQuests.entries())));
-  }, [activeSkillQuests]);
+    localStorage.setItem('masteredSkills', JSON.stringify(Array.from(masteredSkills)));
+  }, [masteredSkills]);
 
   const addQuest = (questData: Omit<Quest, 'id' | 'category'> & { category?: Quest['category'] }) => {
     const newQuest: Quest = {
