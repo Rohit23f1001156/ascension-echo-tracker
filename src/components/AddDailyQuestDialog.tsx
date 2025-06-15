@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,8 +32,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePlayer } from "@/context/PlayerContext";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Calendar as CalendarIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { toast } from "@/components/ui/sonner";
 
 const questFormSchema = z.object({
@@ -40,8 +45,21 @@ const questFormSchema = z.object({
   xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }),
   isBadHabit: z.boolean().default(false),
   difficulty: z.enum(["Easy", "Medium", "Hard"]).default("Easy"),
-  isRecurring: z.boolean().default(false),
-});
+  recurrence: z.enum(["None", "Daily", "Weekly", "Custom"]).default("None"),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+}).refine(
+  (data) => {
+    if (data.recurrence === "Custom") {
+      return !!data.startDate && !!data.endDate;
+    }
+    return true;
+  },
+  {
+    message: "Start and end dates are required for custom recurrence.",
+    path: ["startDate"],
+  }
+);
 
 type AddQuestFormValues = z.infer<typeof questFormSchema>;
 
@@ -56,18 +74,28 @@ export function AddDailyQuestDialog() {
       xp: 10,
       isBadHabit: false,
       difficulty: "Easy",
-      isRecurring: false,
+      recurrence: "None",
     },
   });
 
+  const recurrence = form.watch("recurrence");
+
   function onSubmit(data: AddQuestFormValues) {
-    addQuest({
+    const questPayload: any = {
       title: data.title,
       xp: data.xp,
       type: data.isBadHabit ? 'bad' : 'good',
       difficulty: data.difficulty,
-      isRecurring: data.isRecurring,
-    });
+      isRecurring: data.recurrence !== 'None',
+      recurrence: data.recurrence,
+    };
+
+    if (data.recurrence === 'Custom' && data.startDate && data.endDate) {
+      questPayload.startDate = data.startDate;
+      questPayload.endDate = data.endDate;
+    }
+    
+    addQuest(questPayload);
     toast.success("New Quest Added!", { description: `You've added "${data.title}" to your daily quests.` });
     form.reset();
     setIsOpen(false);
@@ -140,6 +168,109 @@ export function AddDailyQuestDialog() {
             />
             <FormField
               control={form.control}
+              name="recurrence"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Recurrence</FormLabel>
+                   <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select recurrence" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="None">Non-recurring</SelectItem>
+                      <SelectItem value="Daily">Daily</SelectItem>
+                      <SelectItem value="Weekly">Weekly</SelectItem>
+                      <SelectItem value="Custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             {recurrence === 'Custom' && (
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Start Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>End Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+            <FormField
+              control={form.control}
               name="isBadHabit"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
@@ -147,26 +278,6 @@ export function AddDailyQuestDialog() {
                     <FormLabel>Is this a bad habit?</FormLabel>
                     <FormDescription>
                       Completing a bad habit will deduct XP.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="isRecurring"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                  <div className="space-y-0.5">
-                    <FormLabel>Is this a recurring quest?</FormLabel>
-                    <FormDescription>
-                      Recurring quests will reset every day.
                     </FormDescription>
                   </div>
                   <FormControl>

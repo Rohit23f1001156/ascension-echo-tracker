@@ -1,14 +1,16 @@
+
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Flame, Repeat, Edit, Coins, Calendar as CalendarIcon } from "lucide-react";
+import { ArrowLeft, Flame, Repeat, Edit } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import { toast } from "@/components/ui/sonner";
 import { EditQuestDialog } from "@/components/EditQuestDialog";
 import { AddDailyQuestDialog } from "@/components/AddDailyQuestDialog";
+import SharedLayout from "@/components/layout/SharedLayout";
 
 const DailyQuests = () => {
   const { quests, completedQuests, toggleQuest, stats, setConfettiConfig } = usePlayer();
@@ -61,7 +63,7 @@ const DailyQuests = () => {
   const xpProgress = totalXpPossible > 0 ? (currentXpEarned / totalXpPossible) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
+    <SharedLayout>
       <div className="flex justify-between items-center mb-4">
         <Button asChild variant="outline">
           <Link to="/">
@@ -135,7 +137,7 @@ const DailyQuests = () => {
           </Card>
         ))}
       </div>
-    </div>
+    </SharedLayout>
   );
 };
 

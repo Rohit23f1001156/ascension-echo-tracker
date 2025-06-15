@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { User, Shield, Swords, Brain, Heart, Crosshair, ChevronsUp, DollarSign, Clock } from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
 
 const onboardingSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -89,9 +91,12 @@ const Onboarding = () => {
   const onSubmit = (data: OnboardingValues) => {
     const { name, avatar, difficultyPreference, lifeAreas, timeBudget, ...stats } = data;
     updatePlayerProfile(
-        { name, avatar, ...stats }, 
+        { name, avatar, ...stats, coins: 20 }, 
         { difficultyPreference, lifeAreas, timeBudget: timeBudget || {} }
     );
+    toast.success(`Welcome, ${name}!`, {
+        description: "You've been granted a welcome bonus of 20 shiny coins to start your journey. Spend them wisely!",
+    });
     navigate('/');
   };
 
