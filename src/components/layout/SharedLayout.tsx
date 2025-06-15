@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 
 const SharedLayout = ({ children }: { children: React.ReactNode }) => {
@@ -25,7 +24,7 @@ const SharedLayout = ({ children }: { children: React.ReactNode }) => {
       <div 
         className="pointer-events-none fixed inset-0 z-[3] transition duration-300"
         style={{
-          background: 'radial-gradient(600px at var(--mouse-x) var(--mouse-y), rgba(138, 43, 226, 0.15), transparent 80%)'
+          background: 'radial-gradient(600px at var(--mouse-x) var(--mouse-y), rgba(138, 43, 226, 0.3), transparent 80%)'
         }}
       ></div>
       
