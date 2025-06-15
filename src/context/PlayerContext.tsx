@@ -58,6 +58,7 @@ interface PlayerContextType {
   quests: Quest[];
   completedQuests: Set<string>;
   addQuest: (questData: Omit<Quest, 'id' | 'category' | 'lastCompleted' | 'streak'> & { category?: Quest['category'], isRecurring?: 'daily' | 'weekly' }) => void;
+  updateQuest: (questId: string, data: Pick<Quest, 'title' | 'xp' | 'type'> & { isRecurring?: Quest['isRecurring'] }) => void;
   toggleQuest: (questId: string) => void;
   updatePlayerProfile: (stats: Partial<SystemStats>, profile: Partial<UserProfile>) => void;
   levelUpData: { newLevel: number, perk: Buff | null } | null;
@@ -333,6 +334,32 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       newQuest.lastCompleted = null;
     }
     setQuests(prev => [...prev, newQuest]);
+  };
+
+  const updateQuest = (questId: string, data: Pick<Quest, 'title' | 'xp' | 'type'> & { isRecurring?: Quest['isRecurring'] }) => {
+    setQuests(prevQuests => 
+        prevQuests.map(q => {
+            if (q.id === questId) {
+                const updatedQuest = { ...q, ...data };
+                
+                const recurrenceWasRemoved = q.isRecurring && !data.isRecurring;
+                const recurrenceWasAdded = !q.isRecurring && data.isRecurring;
+
+                if (recurrenceWasRemoved) {
+                  updatedQuest.isRecurring = undefined;
+                  delete updatedQuest.streak;
+                  delete updatedQuest.lastCompleted;
+                } else if (recurrenceWasAdded) {
+                  updatedQuest.streak = 0;
+                  updatedQuest.lastCompleted = null;
+                }
+                
+                return updatedQuest;
+            }
+            return q;
+        })
+    );
+    toast.success("Quest updated successfully!");
   };
 
   const updatePlayerProfile = (newStats: Partial<SystemStats>, newProfile: Partial<UserProfile>) => {
@@ -737,7 +764,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig };
+  const value = { stats, profile, quests, completedQuests, addQuest, updateQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig };
 
   return (
     <PlayerContext.Provider value={value}>

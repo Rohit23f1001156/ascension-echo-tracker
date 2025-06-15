@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/select"
 import { usePlayer, Quest } from "@/context/PlayerContext";
 import { toast } from "@/components/ui/sonner";
+import { EditQuestDialog } from "@/components/EditQuestDialog";
+import { Edit } from "lucide-react";
 
 const questFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -254,7 +256,7 @@ const DailyQuests = () => {
                   {quest.title}
                 </label>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
                 {quest.isRecurring && (
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Repeat className="w-3.5 h-3.5" />
@@ -269,6 +271,11 @@ const DailyQuests = () => {
                 <div className={`font-bold ${quest.type === 'good' ? 'text-primary' : 'text-destructive'}`}>
                   {quest.type === 'good' ? '+' : '-'}{quest.xp} XP
                 </div>
+                <EditQuestDialog quest={quest}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </EditQuestDialog>
               </div>
             </CardContent>
           </Card>
