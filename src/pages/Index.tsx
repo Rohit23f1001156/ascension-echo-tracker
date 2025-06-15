@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import {
   CardHeader,
@@ -45,7 +46,7 @@ const quickActions = [
   { title: "Skill Tree", icon: Network, url: "/skill-tree" },
   { title: "Stats", icon: BarChart3, url: "/stats" },
   { title: "Journal", icon: Book, url: "/journal" },
-  { title: "Custom Tasks", icon: PenSquare, url: "/custom-tasks" },
+  // { title: "Custom Tasks", icon: PenSquare, url: "/custom-tasks" },
   { title: "Calendar", icon: Calendar, url: "/calendar" },
   { title: "Boss Fights", icon: Shield, url: "/boss-fights" },
   { title: "Settings", icon: Settings, url: "/settings" },

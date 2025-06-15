@@ -43,6 +43,7 @@ import { toast } from "@/components/ui/sonner";
 const questFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   xp: z.coerce.number().int().positive({ message: "XP must be a positive number." }),
+  duration: z.coerce.number().positive({ message: "Duration must be a positive number." }).optional(),
   isBadHabit: z.boolean().default(false),
   difficulty: z.enum(["Easy", "Medium", "Hard"]).default("Easy"),
   recurrence: z.enum(["None", "Daily", "Weekly", "Custom"]).default("None"),
@@ -81,22 +82,24 @@ export function AddDailyQuestDialog() {
   const recurrence = form.watch("recurrence");
 
   function onSubmit(data: AddQuestFormValues) {
+    const { recurrence, startDate, endDate, isBadHabit, ...restOfData } = data;
+
     const questPayload: any = {
-      title: data.title,
-      xp: data.xp,
-      type: data.isBadHabit ? 'bad' : 'good',
-      difficulty: data.difficulty,
-      isRecurring: data.recurrence !== 'None',
-      recurrence: data.recurrence,
+      ...restOfData,
+      type: isBadHabit ? 'bad' : 'good',
     };
 
-    if (data.recurrence === 'Custom' && data.startDate && data.endDate) {
-      questPayload.startDate = data.startDate;
-      questPayload.endDate = data.endDate;
+    if (recurrence !== 'None') {
+      questPayload.isRecurring = recurrence.toLowerCase() as 'daily' | 'weekly' | 'custom';
+    }
+    
+    if (recurrence === 'Custom' && startDate && endDate) {
+      questPayload.startDate = startDate.toISOString();
+      questPayload.endDate = endDate.toISOString();
     }
     
     addQuest(questPayload);
-    toast.success("New Quest Added!", { description: `You've added "${data.title}" to your daily quests.` });
+    toast.success("New Quest Added!", { description: `You've added "${data.title}" to your quests.` });
     form.reset();
     setIsOpen(false);
   }
@@ -111,9 +114,9 @@ export function AddDailyQuestDialog() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add New Daily Quest</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">Add New Quest</DialogTitle>
           <DialogDescription>
-            Add a new task or habit to your daily routine.
+            Add a new task or habit. More difficult or longer tasks yield more XP.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -131,19 +134,34 @@ export function AddDailyQuestDialog() {
                 </FormItem>
               )}
             />
-             <FormField
-              control={form.control}
-              name="xp"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>XP Reward</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="10" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="xp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Base XP</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="10" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration (Hours)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="e.g., 1.5" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
               name="difficulty"

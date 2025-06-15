@@ -17,6 +17,7 @@ export interface Quest {
   lastCompleted?: string | null;
   streak?: number;
   difficulty?: 'Easy' | 'Medium' | 'Hard';
+  duration?: number; // in hours
   startDate?: string;
   endDate?: string;
 }
@@ -652,6 +653,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       let finalXp = questForXpCalc.xp;
       if (isCompleting && questForXpCalc.type === 'good') {
         finalXp *= difficultyMultiplier;
+        
+        // Apply duration bonus: 5% extra XP per hour
+        if (questForXpCalc.duration && questForXpCalc.duration > 0) {
+          const durationBonus = questForXpCalc.duration * 0.05;
+          finalXp *= (1 + durationBonus);
+        }
         
         // Apply stat bonus
         const statMultiplier = 0.05; // 5% bonus per stat point
