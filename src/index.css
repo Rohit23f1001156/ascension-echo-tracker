@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
 
 @tailwind base;
@@ -77,6 +78,25 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Add keyframes for the border pulse */
+@layer utilities {
+  @keyframes pulse-border {
+    0%, 100% {
+      border-color: hsl(var(--primary) / 0.5);
+      box-shadow: 0 0 10px hsl(var(--primary) / 0.1);
+    }
+    50% {
+      border-color: hsl(var(--primary));
+      box-shadow: 0 0 25px hsl(var(--primary) / 0.4);
+    }
+  }
+
+  .animate-pulse-border {
+    animation: pulse-border 2s infinite;
+  }
+}
+
 
 /* Live wallpaper styles */
 @keyframes aura-pulse {

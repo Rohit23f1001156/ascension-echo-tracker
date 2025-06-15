@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from '@/components/ui/sonner';
+import { skillTreeData } from '@/data/skillTreeData';
 
 // Interfaces
 export interface Quest {
@@ -57,6 +58,11 @@ interface PlayerContextType {
   levelUpAnimation: boolean;
   questLog: { questId: string; title: string; xp: number; date: number }[];
   allocateStatPoint: (stat: 'strength' | 'stamina' | 'concentration' | 'intelligence' | 'wealth') => void;
+  masteredSkills: Set<string>;
+  activeSkillQuests: Map<string, Set<string>>;
+  startSkillQuest: (skillId: string) => void;
+  cancelSkillQuest: (skillId: string) => void;
+  toggleSkillTask: (skillId: string, task: string) => void;
 }
 
 // Initial Data
@@ -126,6 +132,24 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   });
   const [levelUpData, setLevelUpData] = useState<{ newLevel: number, perk: Buff | null } | null>(null);
   const [levelUpAnimation, setLevelUpAnimation] = useState(false);
+  const [masteredSkills, setMasteredSkills] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('masteredSkills');
+    return saved ? new Set(JSON.parse(saved)) : new Set(['c1', 'l1', 'f1', 'h1', 'h4']);
+  });
+  const [activeSkillQuests, setActiveSkillQuests] = useState<Map<string, Set<string>>>(() => {
+    const saved = localStorage.getItem('activeSkillQuests');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) {
+                return new Map(parsed);
+            }
+        } catch (e) {
+            console.error("Failed to parse activeSkillQuests from localStorage", e);
+        }
+    }
+    return new Map();
+  });
 
   useEffect(() => {
     localStorage.setItem('playerStats', JSON.stringify(stats));
@@ -146,6 +170,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     localStorage.setItem('questLog', JSON.stringify(questLog));
   }, [questLog]);
+
+  useEffect(() => {
+    localStorage.setItem('masteredSkills', JSON.stringify(Array.from(masteredSkills)));
+  }, [masteredSkills]);
+
+  useEffect(() => {
+    localStorage.setItem('activeSkillQuests', JSON.stringify(Array.from(activeSkillQuests.entries())));
+  }, [activeSkillQuests]);
 
   const addQuest = (questData: Omit<Quest, 'id' | 'category'> & { category?: Quest['category'] }) => {
     const newQuest: Quest = {
@@ -175,6 +207,113 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         };
       }
       return prevStats;
+    });
+  };
+
+  const masterSkill = (skillId: string, skillXp: number) => {
+    setMasteredSkills(prev => new Set(prev).add(skillId));
+    setActiveSkillQuests(prev => {
+        const newActiveQuests = new Map(prev);
+        newActiveQuests.delete(skillId);
+        return newActiveQuests;
+    });
+    
+    toast.success(`Skill Mastered! You earned ${skillXp} XP!`);
+
+    setStats(prevStats => {
+       let newXp = prevStats.xp + skillXp;
+       let newLevel = prevStats.level;
+       let newXpNextLevel = prevStats.xpNextLevel;
+       let newStatPointsToAllocate = prevStats.statPointsToAllocate;
+       let leveledUp = false;
+       let awardedPerk: Buff | null = null;
+       
+       const now = Date.now();
+       let newBuffs = prevStats.buffs.filter(b => b.expiry > now);
+
+       while (newXp >= newXpNextLevel) {
+         leveledUp = true;
+         newLevel++;
+         newXp -= newXpNextLevel;
+         newXpNextLevel = 1000 + newLevel * 500;
+         newStatPointsToAllocate += 1;
+       }
+
+       if (leveledUp) {
+         const possiblePerks: Omit<Buff, 'id' | 'expiry'>[] = [
+           { stat: 'concentration', description: "+10% Concentration XP for 24h", multiplier: 1.10 },
+           { stat: 'intelligence', description: "+10% Intelligence XP for 24h", multiplier: 1.10 },
+           { stat: 'strength', description: "+10% Strength XP for 24h", multiplier: 1.10 },
+         ];
+         const randomPerk = possiblePerks[Math.floor(Math.random() * possiblePerks.length)];
+         awardedPerk = {
+           ...randomPerk,
+           id: new Date().toISOString(),
+           expiry: Date.now() + 24 * 60 * 60 * 1000,
+         };
+         newBuffs.push(awardedPerk);
+         setLevelUpData({ newLevel, perk: awardedPerk });
+         setLevelUpAnimation(true);
+         setTimeout(() => setLevelUpAnimation(false), 3000);
+       }
+       
+       const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];
+       const titleIndex = Math.min(Math.floor(newLevel / 10), titles.length - 1);
+       const newTitle = titles[titleIndex];
+
+       return {
+         ...prevStats,
+         level: newLevel,
+         xp: Math.max(0, newXp),
+         xpNextLevel: newXpNextLevel,
+         title: newTitle,
+         statPointsToAllocate: newStatPointsToAllocate,
+         buffs: newBuffs,
+       };
+    });
+ };
+
+ const startSkillQuest = (skillId: string) => {
+    setActiveSkillQuests(prev => {
+      const newActiveQuests = new Map(prev);
+      if (!newActiveQuests.has(skillId)) {
+        newActiveQuests.set(skillId, new Set());
+        toast.info("Quest started! Let's get to work.");
+      }
+      return newActiveQuests;
+    });
+  };
+
+  const cancelSkillQuest = (skillId: string) => {
+    setActiveSkillQuests(prev => {
+      const newActiveQuests = new Map(prev);
+      if (newActiveQuests.has(skillId)) {
+        newActiveQuests.delete(skillId);
+        toast.warning("Quest cancelled.");
+      }
+      return newActiveQuests;
+    });
+  };
+
+  const toggleSkillTask = (skillId: string, task: string) => {
+    setActiveSkillQuests(prev => {
+        const newActiveQuests = new Map(prev);
+        const completedTasks = new Set(newActiveQuests.get(skillId));
+
+        if(completedTasks.has(task)) {
+            completedTasks.delete(task);
+        } else {
+            completedTasks.add(task);
+        }
+
+        newActiveQuests.set(skillId, completedTasks);
+
+        const skillNode = skillTreeData.flatMap(p => p.nodes).find(n => n.id === skillId);
+        if (skillNode && completedTasks.size === skillNode.tasks.length) {
+            masterSkill(skillId, skillNode.xp);
+        }
+        
+        return newActiveQuests;
     });
   };
 
@@ -311,7 +450,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint };
+  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 };
