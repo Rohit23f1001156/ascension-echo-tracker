@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { toast } from '@/components/ui/sonner';
 import { skillTreeData as initialSkillTreeData, SkillPath, SkillNode } from '@/data/skillTreeData';
 import ReactConfetti from 'react-confetti';
+import FullScreenLevelUpAnimation from '@/components/FullScreenLevelUpAnimation';
 
 // Interfaces
 export interface Quest {
@@ -69,6 +70,7 @@ interface PlayerContextType {
   updateSkillNode: (pathId: string, skillId: string, data: Partial<Pick<SkillNode, 'name' | 'description' | 'xp' | 'tasks'>>) => void;
   deleteSkillNode: (pathId: string, skillId: string) => void;
   justMasteredSkillId: string | null;
+  setConfettiConfig: React.Dispatch<React.SetStateAction<{ recycle: boolean; numberOfPieces: number } | null>>;
 }
 
 // A new reusable sorting function
@@ -638,7 +640,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId };
+  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig };
 
   return (
     <PlayerContext.Provider value={value}>
@@ -651,6 +653,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
           className="!fixed"
         />
       )}
+      {levelUpAnimation && <FullScreenLevelUpAnimation />}
       {children}
     </PlayerContext.Provider>
   );

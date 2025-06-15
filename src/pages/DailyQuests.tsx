@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -28,6 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { usePlayer, Quest } from "@/context/PlayerContext";
+import { toast } from "@/components/ui/sonner";
 
 const questFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -35,10 +36,10 @@ const questFormSchema = z.object({
   isBadHabit: z.boolean().default(false),
 });
 
-
 const DailyQuests = () => {
-  const { quests, completedQuests, addQuest, toggleQuest } = usePlayer();
+  const { quests, completedQuests, addQuest, toggleQuest, stats, setConfettiConfig } = usePlayer();
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
+  const [allGoodQuestsWereDone, setAllGoodQuestsWereDone] = useState(false);
 
   const form = useForm<z.infer<typeof questFormSchema>>({
     resolver: zodResolver(questFormSchema),
@@ -80,6 +81,27 @@ const DailyQuests = () => {
         return sum + (q.type === 'good' ? q.xp : -q.xp);
       }, 0);
   }, [completedQuests, quests]);
+
+  const goodQuests = useMemo(() => quests.filter(q => q.type === 'good'), [quests]);
+  const allGoodQuestsCompleted = useMemo(() => {
+    if (goodQuests.length === 0) return false;
+    return goodQuests.every(q => completedQuests.has(q.id));
+  }, [goodQuests, completedQuests]);
+
+  useEffect(() => {
+    if (allGoodQuestsCompleted && !allGoodQuestsWereDone) {
+      toast.success("All Daily Quests Complete!", {
+        description: "Incredible work! You've conquered the day.",
+      });
+      if (setConfettiConfig) {
+        setConfettiConfig({ recycle: false, numberOfPieces: 500 });
+        setTimeout(() => setConfettiConfig(null), 6000);
+      }
+      setAllGoodQuestsWereDone(true);
+    } else if (!allGoodQuestsCompleted) {
+      setAllGoodQuestsWereDone(false);
+    }
+  }, [allGoodQuestsCompleted, allGoodQuestsWereDone, setConfettiConfig]);
 
   const xpProgress = totalXpPossible > 0 ? (currentXpEarned / totalXpPossible) * 100 : 0;
 
@@ -177,7 +199,7 @@ const DailyQuests = () => {
           <Progress value={xpProgress} className="h-4" />
           <div className="flex items-center text-muted-foreground mt-2">
             <Flame className="w-4 h-4 mr-2 text-orange-500" />
-            <span>0 Day Streak</span>
+            <span>{stats.streak || 0} Day Streak</span>
           </div>
         </CardContent>
       </Card>
