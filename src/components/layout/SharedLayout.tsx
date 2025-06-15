@@ -1,89 +1,95 @@
 
 import React, { useEffect, useState } from 'react';
-import { PlusCircle, Coins } from 'lucide-react';
-import { usePlayer } from '@/context/PlayerContext';
-import LevelUpDialog from '@/components/LevelUpDialog';
-import Confetti from 'react-confetti';
-import { Link } from 'react-router-dom';
 import Header from './Header';
+import { usePlayer } from '@/context/PlayerContext';
+import DailyReflectionModal, { ReflectionData } from '@/components/DailyReflectionModal';
+import { isToday, format, parseISO } from 'date-fns';
 
 const SharedLayout = ({ children }: { children: React.ReactNode }) => {
-  const { stats, levelUpData, clearLevelUpData } = usePlayer();
-  const [windowSize, setWindowSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
+  const { addJournalEntry, journalEntries } = usePlayer();
+  const [isReflectionModalOpen, setReflectionModalOpen] = useState(false);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
-      document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
-    };
+    const checkReflectionTime = () => {
+      try {
+        const notificationSettings = JSON.parse(localStorage.getItem('notificationSettings') || '{}');
+        if (notificationSettings.journal === false) { // Explicitly check for false
+          return;
+        }
 
-    window.addEventListener('mousemove', handleMouseMove);
+        const lastReflectionDate = localStorage.getItem('lastReflectionDate');
+        if (lastReflectionDate && isToday(parseISO(lastReflectionDate))) {
+          return;
+        }
 
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
+        const now = new Date();
+        if (now.getHours() >= 20) {
+          setReflectionModalOpen(true);
+        }
+      } catch (error) {
+        console.error("Failed to check for reflection time:", error);
+      }
     };
-    window.addEventListener('resize', handleResize);
+    
+    // Check after a short delay to ensure context is loaded
+    const timer = setTimeout(checkReflectionTime, 3000);
 
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      document.documentElement.style.removeProperty('--mouse-x');
-      document.documentElement.style.removeProperty('--mouse-y');
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
+    return () => clearTimeout(timer);
+  }, []); // Run only on initial mount
+
+  const handleSaveReflection = (data: ReflectionData) => {
+    const reflectionContent = `### 🏆 Wins
+${data.wins || "None recorded."}
+
+### 💡 Learnings
+${data.learnings || "None recorded."}
+
+### 🎯 Goals for Tomorrow
+${data.goals || "None recorded."}
+
+### 🙏 Gratitude
+${data.gratitude || "None recorded."}
+`;
+
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const todayEntry = journalEntries.find(entry => format(parseISO(entry.createdAt), 'yyyy-MM-dd') === todayStr);
+
+    if (todayEntry) {
+      const updatedEntry = {
+        title: todayEntry.title,
+        mood: todayEntry.mood,
+        tags: todayEntry.tags,
+        content: `${todayEntry.content}\n\n---\n\n**Evening Reflection**\n\n${reflectionContent}`,
+      };
+      addJournalEntry(updatedEntry, todayEntry.id);
+    } else {
+      const newEntry = {
+        title: `Journal - ${format(new Date(), 'PPP')}`,
+        content: `**Evening Reflection**\n\n${reflectionContent}`,
+        mood: '😐',
+        tags: ['reflection'],
+      };
+      addJournalEntry(newEntry, null);
+    }
+
+    localStorage.setItem('lastReflectionDate', new Date().toISOString());
+    setReflectionModalOpen(false);
+  };
 
   return (
-    <div
-      className="min-h-screen bg-background text-foreground relative"
-    >
-      {levelUpData && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} numberOfPieces={400} tweenDuration={10000} />}
-      {/* Spotlight Effect */}
-      <div 
-        className="pointer-events-none fixed inset-0 z-[3] transition duration-300"
-        style={{
-          background: 'radial-gradient(600px at var(--mouse-x) var(--mouse-y), rgba(138, 43, 226, 0.3), transparent 80%)'
-        }}
-      ></div>
-      
-      {/* Shadow Gate Portal */}
-      <div className="shadow-gate-portal"></div>
-      <div className="blue-flow-border"></div>
-
-      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-4">
-        <div className="flex items-center gap-2 bg-yellow-400/20 border border-yellow-500/30 shadow-lg p-2 rounded-lg text-white">
-          <Coins className="w-5 h-5 text-yellow-400" />
-          <span className="font-bold text-lg">{stats.coins}</span>
-        </div>
-
-        {stats.statPointsToAllocate > 0 && (
-          <Link to="/stats">
-            <div className="flex items-center gap-2 bg-primary/80 border border-primary/30 shadow-lg p-2 rounded-lg text-primary-foreground animate-pulse-strong cursor-pointer hover:bg-primary">
-              <PlusCircle className="w-5 h-5" />
-              <span className="font-bold text-lg">{stats.statPointsToAllocate}</span>
-            </div>
-          </Link>
-        )}
+    <div className="min-h-screen bg-background text-foreground font-sans antialiased">
+      <div className="fixed inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]">
+        <div className="fixed left-0 top-0 -z-10 h-full w-full bg-[radial-gradient(circle_800px_at_100%_200px,#d5c5ff,transparent)]"></div>
       </div>
-      
-      <div className="relative z-20 flex min-h-screen flex-col">
-        <Header />
-        <main className="flex-1 bg-black/70 backdrop-blur-sm">
-          <div className="container mx-auto px-4 py-8">
-            {children}
-          </div>
-        </main>
-      </div>
-      <LevelUpDialog
-        isOpen={!!levelUpData}
-        onClose={clearLevelUpData}
-        levelUpInfo={levelUpData}
-      />
+      <Header />
+      <main className="container mx-auto px-4 py-8">
+        {children}
+        <DailyReflectionModal
+          isOpen={isReflectionModalOpen}
+          onClose={() => setReflectionModalOpen(false)}
+          onSave={handleSaveReflection}
+        />
+      </main>
     </div>
   );
 };

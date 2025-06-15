@@ -1,20 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Save } from 'lucide-react';
-import { DialogFooter, DialogClose } from "@/components/ui/dialog";
-
-export type JournalEntry = {
-  id: string;
-  title: string;
-  content: string;
-  mood: string;
-  tags: string[];
-  createdAt: string;
-};
+import { DialogFooter } from "@/components/ui/dialog";
+import type { JournalEntry } from '@/context/PlayerContext';
 
 const MOODS = ["😊", "😐", "😔", "😠", "🤩"];
 

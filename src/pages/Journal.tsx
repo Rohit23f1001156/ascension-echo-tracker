@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -26,48 +26,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import JournalForm from '@/components/JournalForm';
-import type { JournalEntry } from '@/components/JournalForm';
+import { usePlayer } from '@/context/PlayerContext';
+import type { JournalEntry } from '@/context/PlayerContext';
 
 const Journal = () => {
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const { journalEntries, addJournalEntry, deleteJournalEntry } = usePlayer();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
 
-  useEffect(() => {
-    try {
-      const storedEntries = localStorage.getItem('journalEntries');
-      if (storedEntries) {
-        setEntries(JSON.parse(storedEntries));
-      }
-    } catch (error) {
-      console.error("Failed to load journal entries from localStorage", error);
-      setEntries([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('journalEntries', JSON.stringify(entries));
-    } catch (error) {
-      console.error("Failed to save journal entries to localStorage", error);
-    }
-  }, [entries]);
-
   const handleDelete = (id: string) => {
-    setEntries(entries.filter(entry => entry.id !== id));
+    deleteJournalEntry(id);
   };
   
   const handleSave = (entryData: Omit<JournalEntry, 'id' | 'createdAt'>) => {
-    if (editingEntry) {
-      setEntries(entries.map(e => e.id === editingEntry.id ? { ...e, ...entryData, id: e.id, createdAt: e.createdAt } : e));
-    } else {
-      const newEntry: JournalEntry = {
-        ...entryData,
-        id: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      };
-      setEntries([newEntry, ...entries]);
-    }
+    addJournalEntry(entryData, editingEntry ? editingEntry.id : null);
     setEditingEntry(null);
   };
   
@@ -118,12 +90,12 @@ const Journal = () => {
       </header>
 
       <div className="space-y-4">
-        {entries.length === 0 ? (
+        {journalEntries.length === 0 ? (
           <Card className="text-center p-8 bg-card/80 border-primary/20">
             <p className="text-muted-foreground">Your journal is empty. Write your first entry!</p>
           </Card>
         ) : (
-          entries.map(entry => (
+          journalEntries.map(entry => (
             <Card key={entry.id} className="bg-card/80 border-primary/20">
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">

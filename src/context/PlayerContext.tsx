@@ -39,6 +39,15 @@ export interface Habit {
   difficulty: 'Easy' | 'Medium' | 'Hard';
 }
 
+export type JournalEntry = {
+  id: string;
+  title: string;
+  content: string;
+  mood: string;
+  tags: string[];
+  createdAt: string;
+};
+
 export interface SystemStats {
   name: string;
   avatar: string;
@@ -58,6 +67,8 @@ export interface SystemStats {
   streak: number;
   lastActivityDate: string | null;
   buffs: Buff[];
+  journalStreak: number;
+  lastJournalEntryDate: string | null;
 }
 
 export interface UserProfile {
@@ -96,6 +107,9 @@ interface PlayerContextType {
   deleteSkillNode: (pathId: string, skillId: string) => void;
   justMasteredSkillId: string | null;
   setConfettiConfig: React.Dispatch<React.SetStateAction<{ recycle: boolean; numberOfPieces: number } | null>>;
+  journalEntries: JournalEntry[];
+  addJournalEntry: (entryData: Omit<JournalEntry, 'id' | 'createdAt'>, editingEntryId: string | null) => void;
+  deleteJournalEntry: (entryId: string) => void;
 }
 
 // A new reusable sorting function
@@ -172,6 +186,8 @@ const initialStats: SystemStats = {
   streak: 0,
   lastActivityDate: null,
   buffs: [],
+  journalStreak: 0,
+  lastJournalEntryDate: null,
 };
 
 const initialProfile: UserProfile = {
@@ -229,6 +245,20 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     const savedLog = localStorage.getItem('questLog');
     return savedLog ? JSON.parse(savedLog) : [];
   });
+
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>(() => {
+    const storedEntries = localStorage.getItem('journalEntries');
+    if (storedEntries) {
+      try {
+        return JSON.parse(storedEntries);
+      } catch (e) {
+        console.error("Failed to parse journalEntries from localStorage", e);
+        return [];
+      }
+    }
+    return [];
+  });
+
   const [levelUpData, setLevelUpData] = useState<{ newLevel: number, perk: Buff | null } | null>(null);
   const [levelUpAnimation, setLevelUpAnimation] = useState(false);
   const [masteredSkills, setMasteredSkills] = useState<Set<string>>(() => {
@@ -363,6 +393,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   }, [questLog]);
 
   useEffect(() => {
+    localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
+  }, [journalEntries]);
+
+  useEffect(() => {
     // Correctly serialize the Map of Sets to a JSON-compatible format.
     const serializable = JSON.stringify(
       Array.from(activeSkillQuests.entries()).map(([key, value]) => [key, Array.from(value)])
@@ -445,6 +479,106 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const deleteHabit = (habitId: string) => {
     setHabits(prev => prev.filter(h => h.id !== habitId));
     toast.success("Habit removed.");
+  };
+
+  const deleteJournalEntry = (entryId: string) => {
+    setJournalEntries(prev => prev.filter(entry => entry.id !== entryId));
+    toast.info("Journal entry deleted.");
+  };
+
+  const addJournalEntry = (entryData: Omit<JournalEntry, 'id' | 'createdAt'>, editingEntryId: string | null) => {
+    let isNewEntry = false;
+    if (editingEntryId) {
+      setJournalEntries(prev => prev.map(e => e.id === editingEntryId ? { ...e, ...entryData, id: e.id, createdAt: e.createdAt } : e));
+      toast.success("Journal entry updated!");
+    } else {
+      isNewEntry = true;
+      const newEntry: JournalEntry = {
+        ...entryData,
+        id: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+      setJournalEntries(prev => [newEntry, ...prev]);
+      toast.success("New journal entry saved!");
+    }
+
+    if (isNewEntry) {
+      setStats(prevStats => {
+        const now = new Date();
+        let newJournalStreak = prevStats.journalStreak || 0;
+        const lastDate = prevStats.lastJournalEntryDate ? new Date(prevStats.lastJournalEntryDate) : null;
+
+        if (lastDate) {
+          if (isYesterday(lastDate)) {
+            newJournalStreak++;
+          } else if (!isToday(lastDate)) {
+            newJournalStreak = 1;
+          }
+        } else {
+          newJournalStreak = 1;
+        }
+
+        let xpGained = 25; // Base XP
+        let streakBonus = 0;
+
+        if (newJournalStreak > 1) {
+          if (newJournalStreak % 7 === 0) {
+            streakBonus = 50;
+            toast.success(`7-Day Journaling Streak! +${streakBonus} XP Bonus!`);
+            setConfettiConfig({ recycle: false, numberOfPieces: 200 });
+            setTimeout(() => setConfettiConfig(null), 4000);
+          } else {
+            toast.info(
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-orange-400" />
+                <span>{`Journaling streak: ${newJournalStreak} days!`}</span>
+              </div>
+            );
+          }
+        }
+        
+        xpGained += streakBonus;
+        toast.info(`+${xpGained} XP for writing in your journal!`);
+
+        let newXp = prevStats.xp + xpGained;
+        let newLevel = prevStats.level;
+        let newXpNextLevel = prevStats.xpNextLevel;
+        let newStatPointsToAllocate = prevStats.statPointsToAllocate;
+        let leveledUp = false;
+        let awardedPerk: Buff | null = null;
+        let newBuffs = prevStats.buffs.filter(b => b.expiry > Date.now());
+
+        while (newXp >= newXpNextLevel) {
+          leveledUp = true;
+          newLevel++;
+          newXp -= newXpNextLevel;
+          newXpNextLevel = 1000 + newLevel * 500;
+          newStatPointsToAllocate += 1;
+        }
+
+        if (leveledUp) {
+          setLevelUpData({ newLevel, perk: awardedPerk });
+          setLevelUpAnimation(true);
+          setTimeout(() => setLevelUpAnimation(false), 3000);
+        }
+        
+        const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];
+        const titleIndex = Math.min(Math.floor(newLevel / 10), titles.length - 1);
+        const newTitle = titles[titleIndex];
+
+        return {
+          ...prevStats,
+          level: newLevel,
+          xp: Math.max(0, newXp),
+          xpNextLevel: newXpNextLevel,
+          title: newTitle,
+          statPointsToAllocate: newStatPointsToAllocate,
+          journalStreak: newJournalStreak,
+          lastJournalEntryDate: now.toISOString(),
+          buffs: newBuffs,
+        };
+      });
+    }
   };
 
   const updatePlayerProfile = (newStats: Partial<SystemStats>, newProfile: Partial<UserProfile>) => {
@@ -947,7 +1081,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const value = { stats, profile, quests, habits, completedQuests, addQuest, updateQuest, deleteQuest, toggleQuest, addHabit, deleteHabit, toggleHabit, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig };
+  const value = { stats, profile, quests, habits, completedQuests, addQuest, updateQuest, deleteQuest, toggleQuest, addHabit, deleteHabit, toggleHabit, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog, allocateStatPoint, masteredSkills, activeSkillQuests, startSkillQuest, cancelSkillQuest, toggleSkillTask, skillTree, addSkillNode, updateSkillNode, deleteSkillNode, justMasteredSkillId, setConfettiConfig, journalEntries, addJournalEntry, deleteJournalEntry };
 
   return (
     <PlayerContext.Provider value={value}>
