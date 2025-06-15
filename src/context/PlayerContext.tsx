@@ -1,4 +1,6 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { toast } from '@/components/ui/sonner';
 
 // Interfaces
 export interface Quest {
@@ -164,6 +166,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         newIntelligence += 1;
         newWealth += 1;
         newSkills += 1;
+
+        toast(`🆙 LEVEL UP! You are now Level ${newLevel} 🎉`, {
+          description: "Gained: +1 Strength, +1 Stamina, +1 Intelligence, +1 Concentration, +1 Wealth, +1 Skills. Perks Unlocked: ✨ Momentum Boost (2-day streak!)",
+        });
       }
 
       const titles = ["Beginner", "Amateur", "Semi Pro", "Professional", "World Class", "Legendary"];

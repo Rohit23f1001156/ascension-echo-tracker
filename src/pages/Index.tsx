@@ -1,4 +1,5 @@
 
+
 import { Link } from "react-router-dom";
 import {
   CardHeader,
@@ -60,7 +61,7 @@ const Index = () => {
     <SharedLayout>
       <div className="text-center">
         <header className="mb-8">
-          <h1 className="text-5xl font-bold text-primary animate-pulse">
+          <h1 className="text-5xl font-bold text-primary animate-pulse font-serif">
             Shadow Ascendant
           </h1>
           <p className="text-muted-foreground mt-2">
