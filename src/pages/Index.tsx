@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -24,6 +23,7 @@ import {
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import SharedLayout from "@/components/layout/SharedLayout";
+import SystemCard from "@/components/SystemCard";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
@@ -133,16 +133,12 @@ const Index = () => {
         <section>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {quickActions.map((action) => (
-              <Link to={action.url} key={action.title} className="no-underline">
-                <Card
-                  className="system-card h-full cursor-pointer"
-                >
-                  <div className="system-card-inner">
-                    <action.icon className="w-8 h-8 text-primary" />
-                    <p className="font-semibold text-center">{action.title}</p>
-                  </div>
-                </Card>
-              </Link>
+              <SystemCard
+                key={action.title}
+                title={action.title}
+                icon={action.icon}
+                url={action.url}
+              />
             ))}
           </div>
         </section>
