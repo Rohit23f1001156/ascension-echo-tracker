@@ -1,4 +1,5 @@
 
+import { Link } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -14,15 +15,17 @@ import {
   Settings,
   Swords,
   BarChart3,
+  Shield,
 } from "lucide-react";
 
 const quickActions = [
-  { title: "Daily Quests", icon: Swords },
-  { title: "Skill Tree", icon: Network },
-  { title: "Stats", icon: BarChart3 },
-  { title: "Journal", icon: Book },
-  { title: "Calendar", icon: Calendar },
-  { title: "Settings", icon: Settings },
+  { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
+  { title: "Skill Tree", icon: Network, url: "/skill-tree" },
+  { title: "Stats", icon: BarChart3, url: "/stats" },
+  { title: "Journal", icon: Book, url: "/journal" },
+  { title: "Calendar", icon: Calendar, url: "/calendar" },
+  { title: "Boss Fights", icon: Shield, url: "/boss-fights" },
+  { title: "Settings", icon: Settings, url: "/settings" },
 ];
 
 const Index = () => {
@@ -68,15 +71,16 @@ const Index = () => {
           <section>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {quickActions.map((action) => (
-                <Card
-                  key={action.title}
-                  className="bg-card/80 border-primary/20 hover:border-primary hover:bg-card transition-all cursor-pointer"
-                >
-                  <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
-                    <action.icon className="w-8 h-8 text-primary" />
-                    <p className="font-semibold text-center">{action.title}</p>
-                  </CardContent>
-                </Card>
+                <Link to={action.url} key={action.title} className="no-underline">
+                  <Card
+                    className="bg-card/80 border-primary/20 hover:border-primary hover:bg-card transition-all cursor-pointer h-full"
+                  >
+                    <CardContent className="p-4 flex flex-col items-center justify-center gap-2">
+                      <action.icon className="w-8 h-8 text-primary" />
+                      <p className="font-semibold text-center">{action.title}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
           </section>
