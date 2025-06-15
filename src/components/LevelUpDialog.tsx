@@ -20,6 +20,10 @@ interface LevelUpDialogProps {
 const LevelUpDialog = ({ isOpen, onClose, levelUpInfo }: LevelUpDialogProps) => {
   if (!levelUpInfo) return null;
 
+  const handleSkipForNow = () => {
+    onClose();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-background/80 backdrop-blur-sm border-primary/50 text-foreground">
@@ -41,9 +45,12 @@ const LevelUpDialog = ({ isOpen, onClose, levelUpInfo }: LevelUpDialogProps) => 
             </>
           )}
         </div>
-        <DialogFooter className="sm:justify-center">
-          <Button asChild onClick={onClose} className="px-8">
-            <Link to="/stats">Allocate Point</Link>
+        <DialogFooter className="sm:justify-center gap-2">
+          <Button asChild className="px-6">
+            <Link to="/stats" onClick={onClose}>Allocate Now</Link>
+          </Button>
+          <Button variant="outline" onClick={handleSkipForNow} className="px-6">
+            Skip for Now
           </Button>
         </DialogFooter>
       </DialogContent>

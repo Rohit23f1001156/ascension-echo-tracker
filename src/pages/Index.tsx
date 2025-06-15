@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -24,6 +25,7 @@ import {
   ArrowUp,
   PenSquare,
   LogOut,
+  Coins,
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import SharedLayout from "@/components/layout/SharedLayout";
@@ -40,21 +42,27 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import WeeklySummary from "@/components/WeeklySummary";
 import ShadowTrials from "@/components/ShadowTrials";
 import { supabase } from "@/lib/supabase";
 import AiCompanion from "@/components/AiCompanion";
 import AnalyticsChart from "@/components/AnalyticsChart";
+import LevelUpDialog from "@/components/LevelUpDialog";
 
 const quickActions = [
-  { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
-  { title: "Skill Tree", icon: Network, url: "/skill-tree" },
-  { title: "Stats", icon: BarChart3, url: "/stats" },
-  { title: "Journal", icon: Book, url: "/journal" },
-  // { title: "Custom Tasks", icon: PenSquare, url: "/custom-tasks" },
-  { title: "Calendar", icon: Calendar, url: "/calendar" },
-  { title: "Boss Fights", icon: Shield, url: "/boss-fights" },
-  { title: "Settings", icon: Settings, url: "/settings" },
+  { title: "Daily Quests", icon: Swords, url: "/daily-quests", description: "Complete your daily challenges and build consistent habits" },
+  { title: "Skill Tree", icon: Network, url: "/skill-tree", description: "Unlock new abilities and master different skills" },
+  { title: "Stats", icon: BarChart3, url: "/stats", description: "View your character stats and allocate skill points" },
+  { title: "Journal", icon: Book, url: "/journal", description: "Write daily reflections and track your thoughts" },
+  { title: "Calendar", icon: Calendar, url: "/calendar", description: "View your progress and activity over time" },
+  { title: "Boss Fights", icon: Shield, url: "/boss-fights", description: "Take on challenging long-term goals" },
+  { title: "Settings", icon: Settings, url: "/settings", description: "Customize your experience and preferences" },
 ];
 
 const motivationalQuotes = [
@@ -66,7 +74,7 @@ const motivationalQuotes = [
 ];
 
 const Index = () => {
-  const { stats: systemStats, levelUpAnimation } = usePlayer();
+  const { stats: systemStats, levelUpAnimation, levelUpData, clearLevelUpData } = usePlayer();
   const [quote, setQuote] = useState("");
 
   useEffect(() => {
@@ -93,142 +101,178 @@ const Index = () => {
   );
 
   return (
-    <SharedLayout>
-      <div className="text-center">
-        <header className="mb-8">
-          <h1 className="text-5xl font-bold text-primary animate-pulse font-serif">
-            Shadow Ascendant
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Welcome, {systemStats.name || 'Shadow Hunter'}. Your journey begins.
-          </p>
-          {quote && <p className="text-primary/80 italic mt-2 text-sm">"{quote}"</p>}
-        </header>
+    <TooltipProvider>
+      <SharedLayout>
+        <div className="text-center">
+          <header className="mb-8">
+            <h1 className="text-5xl font-bold text-primary animate-pulse font-serif">
+              Shadow Ascendant
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Welcome, {systemStats.name || 'Shadow Hunter'}. Your journey begins.
+            </p>
+            {quote && <p className="text-primary/80 italic mt-2 text-sm">"{quote}"</p>}
+          </header>
 
-        {/* System Stats */}
-        <section className="mb-8">
-          <HoverTiltWrapper className="system-card max-w-2xl mx-auto">
-            <div className="status-card-inner">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-center tracking-widest uppercase font-serif">Status</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-                  {/* Level */}
-                  <div className="text-center flex-shrink-0">
-                    <p className={`text-7xl font-bold text-primary transition-all duration-500 ${levelUpAnimation ? 'animate-pulse-strong' : ''}`}>{systemStats.level}</p>
-                    <p className="text-muted-foreground tracking-widest">LEVEL</p>
-                  </div>
-
-                  {/* Right side info */}
-                  <div className="flex-1 w-full space-y-4">
-                    {/* Job & Title */}
-                    <div className="grid grid-cols-2 gap-4 text-center sm:text-left">
-                      <div>
-                        <p className="text-sm text-muted-foreground">CLASS</p>
-                        <p className="font-semibold">{systemStats.class}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">TITLE</p>
-                        <p className="font-semibold">{systemStats.title}</p>
-                      </div>
+          {/* System Stats */}
+          <section className="mb-8">
+            <HoverTiltWrapper className="system-card max-w-2xl mx-auto">
+              <div className="status-card-inner">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold text-center tracking-widest uppercase font-serif">Status</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                    {/* Level */}
+                    <div className="text-center flex-shrink-0">
+                      <p className={`text-7xl font-bold text-primary transition-all duration-500 ${levelUpAnimation ? 'animate-pulse-strong' : ''}`}>{systemStats.level}</p>
+                      <p className="text-muted-foreground tracking-widest">LEVEL</p>
                     </div>
 
-                    {/* XP Bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">XP</span>
-                        <span className="font-mono text-xs">{systemStats.xp} / {systemStats.xpNextLevel}</span>
+                    {/* Right side info */}
+                    <div className="flex-1 w-full space-y-4">
+                      {/* Job & Title */}
+                      <div className="grid grid-cols-2 gap-4 text-center sm:text-left">
+                        <div>
+                          <p className="text-sm text-muted-foreground">CLASS</p>
+                          <p className="font-semibold">{systemStats.class}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">TITLE</p>
+                          <p className="font-semibold">{systemStats.title}</p>
+                        </div>
                       </div>
-                      <Progress value={(systemStats.xp / systemStats.xpNextLevel) * 100} className="h-2" />
+
+                      {/* XP Bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">XP</span>
+                          <span className="font-mono text-xs">{systemStats.xp} / {systemStats.xpNextLevel}</span>
+                        </div>
+                        <Progress value={(systemStats.xp / systemStats.xpNextLevel) * 100} className="h-2" />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Divider */}
-                <div className="my-6 border-t border-primary/20"></div>
+                  {/* Divider */}
+                  <div className="my-6 border-t border-primary/20"></div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                  <StatItem icon={ChevronsUp} label="Strength" value={systemStats.strength} />
-                  <StatItem icon={Heart} label="Stamina" value={systemStats.stamina} />
-                  <StatItem icon={Crosshair} label="Concentration" value={systemStats.concentration} />
-                  <StatItem icon={Brain} label="Intelligence" value={systemStats.intelligence} />
-                  <StatItem icon={DollarSign} label="Wealth" value={systemStats.wealth} />
-                  <StatItem icon={Star} label="Skills" value={systemStats.skills} />
-                </div>
-              </CardContent>
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                    <StatItem icon={ChevronsUp} label="Strength" value={systemStats.strength} />
+                    <StatItem icon={Heart} label="Stamina" value={systemStats.stamina} />
+                    <StatItem icon={Crosshair} label="Concentration" value={systemStats.concentration} />
+                    <StatItem icon={Brain} label="Intelligence" value={systemStats.intelligence} />
+                    <StatItem icon={DollarSign} label="Wealth" value={systemStats.wealth} />
+                    <StatItem icon={Star} label="Skills" value={systemStats.skills} />
+                    <StatItem icon={Coins} label="Coins" value={systemStats.coins} />
+                  </div>
+                </CardContent>
+              </div>
+            </HoverTiltWrapper>
+          </section>
+
+          {/* Quick Actions */}
+          <section className="mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {quickActions.map((action) => (
+                <Tooltip key={action.title}>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <SystemCard
+                        title={action.title}
+                        icon={action.icon}
+                        url={action.url}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">{action.description}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <SystemCard title="Restart" icon={RotateCcw} />
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete your progress and you will have to start over.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleRestart}>Yes, Restart</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Reset all progress and start fresh</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <SystemCard title="Logout" icon={LogOut} />
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            You will be returned to the login page.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleLogout}>Yes, Logout</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Sign out of your account</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-          </HoverTiltWrapper>
-        </section>
+          </section>
 
-        {/* Quick Actions */}
-        <section className="mb-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {quickActions.map((action) => (
-              <SystemCard
-                key={action.title}
-                title={action.title}
-                icon={action.icon}
-                url={action.url}
-              />
-            ))}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <SystemCard title="Restart" icon={RotateCcw} />
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete your progress and you will have to start over.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleRestart}>Yes, Restart</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <SystemCard title="Logout" icon={LogOut} />
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    You will be returned to the login page.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleLogout}>Yes, Logout</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </section>
+          {/* Shadow Trials */}
+          <ShadowTrials />
+          
+          {/* AI Companion */}
+          <section className="mb-8 max-w-2xl mx-auto">
+              <AiCompanion />
+          </section>
+          
+          {/* Weekly Summary */}
+          <section id="weekly-summary" className="mt-8">
+            <WeeklySummary />
+          </section>
 
-        {/* Shadow Trials */}
-        <ShadowTrials />
-        
-        {/* AI Companion */}
-        <section className="mb-8 max-w-2xl mx-auto">
-            <AiCompanion />
-        </section>
-        
-        {/* Weekly Summary */}
-        <section id="weekly-summary" className="mt-8">
-          <WeeklySummary />
-        </section>
+          {/* Analytics Chart */}
+          <section className="mb-8 max-w-4xl mx-auto">
+            <AnalyticsChart />
+          </section>
 
-        {/* Analytics Chart */}
-        <section className="mb-8 max-w-4xl mx-auto">
-          <AnalyticsChart />
-        </section>
-      </div>
-    </SharedLayout>
+          {/* Level Up Dialog */}
+          <LevelUpDialog
+            isOpen={!!levelUpData}
+            onClose={clearLevelUpData}
+            levelUpInfo={levelUpData}
+          />
+        </div>
+      </SharedLayout>
+    </TooltipProvider>
   );
 };
 
