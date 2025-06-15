@@ -24,6 +24,8 @@ export interface SystemStats {
   wealth: number;
   skills: number;
   skillPoints: number;
+  streak: number;
+  lastActivityDate: string | null;
 }
 
 export interface UserProfile {
@@ -43,6 +45,7 @@ interface PlayerContextType {
   levelUpData: { newLevel: number } | null;
   clearLevelUpData: () => void;
   levelUpAnimation: boolean;
+  questLog: { questId: string; title: string; xp: number; date: number }[];
 }
 
 // Initial Data
@@ -74,6 +77,8 @@ const initialStats: SystemStats = {
   wealth: 0,
   skills: 1,
   skillPoints: 0,
+  streak: 0,
+  lastActivityDate: null,
 };
 
 const initialProfile: UserProfile = {
@@ -103,6 +108,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     const savedCompleted = localStorage.getItem('completedQuests');
     return savedCompleted ? new Set(JSON.parse(savedCompleted)) : new Set();
   });
+  const [questLog, setQuestLog] = useState<{ questId: string; title: string; xp: number; date: number }[]>(() => {
+    const savedLog = localStorage.getItem('questLog');
+    return savedLog ? JSON.parse(savedLog) : [];
+  });
   const [levelUpData, setLevelUpData] = useState<{ newLevel: number } | null>(null);
   const [levelUpAnimation, setLevelUpAnimation] = useState(false);
 
@@ -121,6 +130,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     localStorage.setItem('completedQuests', JSON.stringify(Array.from(completedQuests)));
   }, [completedQuests]);
+
+  useEffect(() => {
+    localStorage.setItem('questLog', JSON.stringify(questLog));
+  }, [questLog]);
 
   const addQuest = (questData: Omit<Quest, 'id'>) => {
     const newQuest: Quest = {
@@ -147,9 +160,21 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     if (newCompletedSet.has(questId)) {
       newCompletedSet.delete(questId);
       xpChange = quest.type === 'good' ? -quest.xp : quest.xp;
+      // Remove from log
+      setQuestLog(prevLog => {
+        const newLog = [...prevLog];
+        const lastIndex = newLog.map(item => item.questId).lastIndexOf(questId);
+        if (lastIndex > -1) {
+          newLog.splice(lastIndex, 1);
+          return newLog;
+        }
+        return prevLog;
+      });
     } else {
       newCompletedSet.add(questId);
       xpChange = quest.type === 'good' ? quest.xp : -quest.xp;
+      // Add to log
+      setQuestLog(prevLog => [...prevLog, { questId: quest.id, title: quest.title, xp: quest.xp, date: Date.now() }]);
     }
     setCompletedQuests(newCompletedSet);
 
@@ -165,6 +190,23 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       let newSkills = prevStats.skills;
       let newSkillPoints = prevStats.skillPoints;
       let leveledUp = false;
+
+      // Streak logic
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      let newStreak = prevStats.streak || 0;
+      let newLastActivityDate = prevStats.lastActivityDate;
+      
+      if (xpChange > 0) { // Only count streak for positive actions
+          if (newLastActivityDate !== today) { // And only once per day
+              if (newLastActivityDate === yesterday) {
+                  newStreak++;
+              } else {
+                  newStreak = 1; // Reset streak if a day was missed
+              }
+              newLastActivityDate = today;
+          }
+      }
 
       while (newXp >= newXpNextLevel) {
         leveledUp = true;
@@ -205,11 +247,13 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         wealth: newWealth,
         skills: newSkills,
         skillPoints: newSkillPoints,
+        streak: newStreak,
+        lastActivityDate: newLastActivityDate,
       };
     });
   };
 
-  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation };
+  const value = { stats, profile, quests, completedQuests, addQuest, toggleQuest, updatePlayerProfile, levelUpData, clearLevelUpData, levelUpAnimation, questLog };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 };

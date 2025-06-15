@@ -15,6 +15,7 @@ import BossFights from "./pages/BossFights";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import { PlayerProvider, usePlayer } from "./context/PlayerContext";
+import CustomTasks from "./pages/CustomTasks";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const AppRouter = () => {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/boss-fights" element={<BossFights />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/custom-tasks" element={<CustomTasks />} />
             <Route path="/onboarding" element={<Navigate to="/" />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

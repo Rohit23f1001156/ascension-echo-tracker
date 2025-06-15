@@ -22,6 +22,7 @@ import {
   DollarSign,
   RotateCcw,
   ArrowUp,
+  PenSquare,
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import SharedLayout from "@/components/layout/SharedLayout";
@@ -38,12 +39,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import WeeklySummary from "@/components/WeeklySummary";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests" },
   { title: "Skill Tree", icon: Network, url: "/skill-tree" },
   { title: "Stats", icon: BarChart3, url: "/stats" },
   { title: "Journal", icon: Book, url: "/journal" },
+  { title: "Custom Tasks", icon: PenSquare, url: "/custom-tasks" },
   { title: "Calendar", icon: Calendar, url: "/calendar" },
   { title: "Boss Fights", icon: Shield, url: "/boss-fights" },
   { title: "Settings", icon: Settings, url: "/settings" },
@@ -142,9 +145,14 @@ const Index = () => {
           </HoverTiltWrapper>
         </section>
 
+        {/* Weekly Summary */}
+        <section className="mb-8">
+          <WeeklySummary />
+        </section>
+
         {/* Quick Actions */}
         <section>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {quickActions.map((action) => (
               <SystemCard
                 key={action.title}
