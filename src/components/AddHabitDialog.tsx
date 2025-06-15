@@ -3,7 +3,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { usePlayer, Habit } from '@/context/PlayerContext';
+import { usePlayer } from '@/context/PlayerContext';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/select';
 import { PlusCircle } from 'lucide-react';
 
-const habitFormSchema: z.ZodType<Omit<Habit, 'id' | 'streak' | 'lastCompleted'>> = z.object({
+const habitFormSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters.'),
   type: z.enum(['good', 'bad']),
   difficulty: z.enum(['Easy', 'Medium', 'Hard']),
