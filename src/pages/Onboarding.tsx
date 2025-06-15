@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -110,7 +109,7 @@ const Onboarding = () => {
                 <div className="space-y-4 animate-fade-in">
                   <h3 className="font-bold text-xl font-serif">Step 1: Your Identity</h3>
                   <div>
-                    <Label htmlFor="name">What is your name, hunter?</Label>
+                    <Label htmlFor="name" className="font-serif">What is your name, hunter?</Label>
                     <Controller name="name" control={control} render={({ field, fieldState }) => (
                       <>
                         <Input id="name" {...field} placeholder="e.g., Sung Jin-Woo" />
@@ -119,7 +118,7 @@ const Onboarding = () => {
                     )} />
                   </div>
                   <div>
-                    <Label>Choose your Avatar</Label>
+                    <Label className="font-serif">Choose your Avatar</Label>
                      <Controller name="avatar" control={control} render={({ field }) => (
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <SelectTrigger><SelectValue placeholder="Select Avatar" /></SelectTrigger>
@@ -140,7 +139,7 @@ const Onboarding = () => {
                 <div className="space-y-4 animate-fade-in">
                   <h3 className="font-bold text-xl font-serif">Step 2: Areas to Conquer</h3>
                   <div>
-                    <Label>Which life areas do you want to level up?</Label>
+                    <Label className="font-serif">Which life areas do you want to level up?</Label>
                     <Controller name="lifeAreas" control={control} render={({ field, fieldState }) => (
                         <div className="space-y-2 mt-2">
                         {lifeAreasOptions.map(area => (
@@ -167,7 +166,7 @@ const Onboarding = () => {
               {step === 3 && (
                  <div className="space-y-6 animate-fade-in">
                     <h3 className="font-bold text-xl font-serif">Step 3: Allocate Your Time</h3>
-                    <p className="text-muted-foreground text-sm">How many hours per day can you dedicate to each area?</p>
+                    <p className="text-muted-foreground font-serif">How many hours per day can you dedicate to each area?</p>
                     {selectedLifeAreas.map(area => (
                         <div key={area} className="space-y-2">
                             <Label htmlFor={`time-${area}`} className="flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> {area}</Label>
@@ -195,7 +194,7 @@ const Onboarding = () => {
               {step === 4 && (
                  <div className="space-y-6 animate-fade-in">
                     <h3 className="font-bold text-xl font-serif">Step 4: Assess Your Power</h3>
-                    <p className="text-muted-foreground text-sm">Rate your current level in each stat from 1 to 10.</p>
+                    <p className="text-muted-foreground font-serif">Rate your current level in each stat from 1 to 10.</p>
                     {statOptions.map(stat => (
                         <div key={stat.name} className="space-y-2">
                             <Label className="flex items-center gap-2">{stat.icon} {stat.label}</Label>
@@ -218,7 +217,7 @@ const Onboarding = () => {
                 <div className="space-y-4 animate-fade-in">
                   <h3 className="font-bold text-xl font-serif">Step 5: Mission Difficulty</h3>
                   <div>
-                    <Label>Choose your preferred task difficulty.</Label>
+                    <Label className="font-serif">Choose your preferred task difficulty.</Label>
                      <Controller name="difficultyPreference" control={control} render={({ field }) => (
                         <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="mt-2 grid grid-cols-3 gap-4">
                            {['Easy', 'Medium', 'Hard'].map(diff => (

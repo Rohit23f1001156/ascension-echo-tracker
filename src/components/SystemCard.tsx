@@ -16,7 +16,7 @@ const SystemCard = React.forwardRef<HTMLDivElement, SystemCardProps>(
       <HoverTiltWrapper className="system-card h-full">
         <div className="system-card-inner">
           <Icon className="w-8 h-8 text-primary" />
-          <p className="font-semibold text-center">{title}</p>
+          <p className="font-semibold text-center font-serif">{title}</p>
         </div>
       </HoverTiltWrapper>
     );
