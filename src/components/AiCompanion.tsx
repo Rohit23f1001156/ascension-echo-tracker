@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Brain, BarChart2, Zap } from "lucide-react";
 import { toast } from 'sonner';
+import HoverTiltWrapper from './HoverTiltWrapper';
 
 const staticResponses = {
   focus: "To improve focus, try the Pomodoro Technique: work for 25 minutes, then take a 5-minute break. Eliminate distractions and set a clear goal for each session.",
@@ -21,25 +22,27 @@ const AiCompanion = () => {
   };
 
   return (
-    <Card className="bg-card/80 border-primary/20">
-        <CardHeader>
-          <CardTitle>AI Shadow Companion</CardTitle>
-          <CardDescription>
-            Seek counsel from your companion. Select a prompt to receive insight.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={() => handleCompanionPrompt('focus')}>
-            <Brain className="h-4 w-4" /> How can I improve focus?
-          </Button>
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={() => handleCompanionPrompt('xp_trend')}>
-            <BarChart2 className="h-4 w-4" /> How do I analyze my progress?
-          </Button>
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={() => handleCompanionPrompt('motivation')}>
-            <Zap className="h-4 w-4" /> Motivate me!
-          </Button>
-        </CardContent>
-    </Card>
+    <HoverTiltWrapper className="system-card">
+        <div className="system-card-inner">
+            <CardHeader>
+              <CardTitle>AI Shadow Companion</CardTitle>
+              <CardDescription>
+                Seek counsel from your companion. Select a prompt to receive insight.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button variant="outline" className="w-full justify-start gap-2" onClick={() => handleCompanionPrompt('focus')}>
+                <Brain className="h-4 w-4" /> How can I improve focus?
+              </Button>
+              <Button variant="outline" className="w-full justify-start gap-2" onClick={() => handleCompanionPrompt('xp_trend')}>
+                <BarChart2 className="h-4 w-4" /> How do I analyze my progress?
+              </Button>
+              <Button variant="outline" className="w-full justify-start gap-2" onClick={() => handleCompanionPrompt('motivation')}>
+                <Zap className="h-4 w-4" /> Motivate me!
+              </Button>
+            </CardContent>
+        </div>
+    </HoverTiltWrapper>
   );
 };
 

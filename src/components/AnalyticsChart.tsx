@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
@@ -24,7 +25,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 const AnalyticsChart = () => {
-    const { quests } = usePlayer();
+    const { questLog } = usePlayer();
 
     const chartData = React.useMemo(() => {
         const last7Days = eachDayOfInterval({
@@ -32,18 +33,16 @@ const AnalyticsChart = () => {
             end: new Date(),
         });
 
-        const completedQuests = quests.filter(q => q.status === 'completed' && q.completionDate);
-
         return last7Days.map(day => {
-            const questsOnDay = completedQuests.filter(q => 
-                isSameDay(parseISO(q.completionDate!), day)
+            const questsOnDay = questLog.filter(log => 
+                isSameDay(parseISO(log.date), day)
             ).length;
             return {
                 date: format(day, 'EEE'),
                 quests: questsOnDay,
             };
         });
-    }, [quests]);
+    }, [questLog]);
 
 
     return (
