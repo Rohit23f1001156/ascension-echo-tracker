@@ -99,6 +99,24 @@ const Onboarding = () => {
     try {
       const { name, avatar, difficultyPreference, lifeAreas, timeBudget, ...formStats } = data;
 
+      if (!user) {
+        toast.error("Authentication error. Please log in again.");
+        return;
+      }
+
+      // First check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (existingProfile) {
+        toast.error("Profile already exists. Redirecting to dashboard.");
+        navigate('/');
+        return;
+      }
+
       const statsToSave = {
         name,
         avatar,
@@ -117,24 +135,29 @@ const Onboarding = () => {
         journalStreak: 0,
         lastJournalEntryDate: null,
       };
-      const settingsToSave = { difficultyPreference, lifeAreas, timeBudget: timeBudget || {} };
 
-      // Update local state via context first
-      updatePlayerProfile(statsToSave, settingsToSave);
+      // Convert time budget from hours to minutes for better precision
+      const timeBudgetInMinutes: Record<string, number> = {};
+      Object.entries(timeBudget || {}).forEach(([area, hours]) => {
+        timeBudgetInMinutes[area] = (hours as number) * 60;
+      });
 
-      if (!user) {
-        toast.error("Authentication error. Please log in again.");
-        return;
-      }
+      const settingsToSave = { 
+        username: name,
+        class: avatar,
+        areas: lifeAreas,
+        time_commitment: timeBudgetInMinutes,
+        difficultyPreference 
+      };
 
-      console.log('Saving complete profile to Supabase for user:', user.id);
+      console.log('Creating complete profile in Supabase for user:', user.id);
       
       const profileData = {
         id: user.id,
         updated_at: new Date().toISOString(),
         stats: statsToSave,
         settings: settingsToSave,
-        quests: [], // Initialize empty arrays
+        quests: [],
         habits: [],
         journal_entries: [],
         skill_tree: null,
@@ -142,28 +165,28 @@ const Onboarding = () => {
         onboarding_complete: true,
       };
 
-      const { error } = await supabase.from('profiles').upsert(profileData);
+      const { error } = await supabase.from('profiles').insert([profileData]);
 
       if (error) {
-        console.error("Supabase profile save error:", error);
-        toast.error("Failed to save your profile to the cloud. Please check your database setup.");
-        // Don't return - let them continue with local storage
-      } else {
-        console.log('Profile saved successfully to Supabase');
-        toast.success('Profile saved to the cloud!');
+        console.error("Supabase profile creation error:", error);
+        toast.error("Failed to save your profile to the cloud. Please try again.");
+        return;
       }
 
+      console.log('Profile created successfully in Supabase');
+      
+      // Update local state after successful Supabase save
+      updatePlayerProfile(statsToSave, settingsToSave);
       localStorage.setItem("onboardingComplete", "true");
+      
       toast.success(`Welcome, ${name}!`, {
-          description: "You've been granted a welcome bonus of 20 shiny coins to start your journey. Spend them wisely!",
+          description: "Your profile has been created! You've been granted 20 coins to start your journey.",
       });
+      
       navigate('/');
     } catch (err) {
       console.error('Error during onboarding:', err);
-      toast.error('An error occurred during setup. Data saved locally.');
-      // Still allow them to continue
-      localStorage.setItem("onboardingComplete", "true");
-      navigate('/');
+      toast.error('An error occurred during setup. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -312,7 +335,7 @@ const Onboarding = () => {
               {step < 5 && <Button type="button" onClick={nextStep} disabled={isSubmitting}>Next</Button>}
               {step === 5 && (
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Setting up...' : 'Begin Your Ascent'}
+                  {isSubmitting ? 'Creating Profile...' : 'Begin Your Ascent'}
                 </Button>
               )}
             </CardFooter>
