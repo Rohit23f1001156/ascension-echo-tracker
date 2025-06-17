@@ -35,6 +35,46 @@ const clearPlayerData = () => {
   localStorage.removeItem('skillTree');
 };
 
+const createDefaultProfile = async (userId: string) => {
+  try {
+    console.log('Creating default profile for user:', userId);
+    
+    const defaultProfile = {
+      id: userId,
+      stats: { 
+        strength: 1, 
+        stamina: 1, 
+        intelligence: 1, 
+        concentration: 1, 
+        wealth: 1 
+      },
+      settings: {},
+      onboarding_complete: false,
+      updated_at: new Date().toISOString(),
+      quests: [],
+      habits: [],
+      journal_entries: [],
+      skill_tree: null,
+      mastered_skills: []
+    };
+
+    const { error } = await supabase
+      .from('profiles')
+      .insert([defaultProfile]);
+
+    if (error) {
+      console.error('Error creating default profile:', error);
+      return false;
+    }
+
+    console.log('Default profile created successfully');
+    return true;
+  } catch (err) {
+    console.error('Error in createDefaultProfile:', err);
+    return false;
+  }
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -45,6 +85,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (session?.user) {
         try {
           console.log('Syncing profile for user:', session.user.id);
+          
+          // First, check if profile exists
           const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
@@ -53,8 +95,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           if (error) {
             if (error.code === 'PGRST116') {
-              console.log('No profile found for user, will create on onboarding');
-              // Don't clear data immediately - let user complete onboarding first
+              console.log('No profile found, creating default profile');
+              // Create default profile and clear local data
+              const created = await createDefaultProfile(session.user.id);
+              if (created) {
+                clearPlayerData();
+                toast.info('Welcome! Please complete your profile setup.');
+              } else {
+                toast.error('Error creating your profile. Using local storage for now.');
+              }
             } else {
               console.error('Error fetching profile:', error);
               toast.error('Error loading your profile. Check your database setup.');
@@ -92,7 +141,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             localStorage.setItem('onboardingComplete', 'true');
             toast.success('Welcome back! Your progress has been loaded.');
           } else {
-            console.log('Profile found but onboarding not complete, clearing data');
+            console.log('Profile found but onboarding not complete, clearing local data');
             clearPlayerData();
           }
         } catch (err) {
