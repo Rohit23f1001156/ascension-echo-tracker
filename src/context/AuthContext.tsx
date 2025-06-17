@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
@@ -46,9 +45,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           console.log('Syncing profile for user:', session.user.id);
           
-          // Check if profile exists
+          // Check if profile exists in 'data' table
           const { data: profile, error } = await supabase
-            .from('profiles')
+            .from('data')
             .select('*')
             .eq('id', session.user.id)
             .single();

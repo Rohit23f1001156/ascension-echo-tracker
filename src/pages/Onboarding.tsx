@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -104,9 +103,9 @@ const Onboarding = () => {
         return;
       }
 
-      // First check if profile already exists
+      // First check if profile already exists in 'data' table
       const { data: existingProfile } = await supabase
-        .from('profiles')
+        .from('data')
         .select('id')
         .eq('id', user.id)
         .single();
@@ -165,7 +164,7 @@ const Onboarding = () => {
         onboarding_complete: true,
       };
 
-      const { error } = await supabase.from('profiles').insert([profileData]);
+      const { error } = await supabase.from('data').insert([profileData]);
 
       if (error) {
         console.error("Supabase profile creation error:", error);
