@@ -116,6 +116,7 @@ const Onboarding = () => {
         return;
       }
 
+      // Create stats object for local storage
       const statsToSave = {
         name,
         avatar,
@@ -141,6 +142,7 @@ const Onboarding = () => {
         timeBudgetInMinutes[area] = (hours as number) * 60;
       });
 
+      // Create settings object for local storage
       const settingsToSave = { 
         username: name,
         class: avatar,
@@ -149,15 +151,25 @@ const Onboarding = () => {
         difficultyPreference 
       };
 
-      console.log('Creating complete profile in Supabase for user:', user.id);
+      console.log('Creating profile in Supabase for user:', user.id);
       
-      // Only insert the core columns that exist in your schema
+      // CRITICAL: Only insert fields that exist in the data table schema
       const profileData = {
         id: user.id,
         updated_at: new Date().toISOString(),
-        stats: statsToSave,
-        settings: settingsToSave,
-        onboarding_complete: true,
+        stats: {
+          strength: formStats.strength,
+          stamina: formStats.stamina,
+          intelligence: formStats.intelligence,
+          wealth: formStats.wealth,
+          concentration: formStats.concentration
+        },
+        settings: {
+          username: name,
+          class: avatar,
+          areas: lifeAreas
+        },
+        onboarding_complete: true
       };
 
       const { error } = await supabase.from('data').insert([profileData]);
