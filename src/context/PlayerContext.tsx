@@ -1,11 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { toast } from '@/components/ui/sonner';
-import { skillTreeData as initialSkillTreeData, SkillPath, SkillNode } from '@/data/skillTreeData';
-import ReactConfetti from 'react-confetti';
-import FullScreenLevelUpAnimation from '@/components/FullScreenLevelUpAnimation';
-import { isToday, isYesterday } from 'date-fns';
-import { Flame } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from './AuthContext';
+import { toast } from '@/components/ui/sonner';
 
 // Interfaces
 export interface Quest {
@@ -395,49 +391,89 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only on app startup
 
-  // Save to Supabase function
-  const saveToSupabase = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log('No user found, skipping Supabase save');
-        return;
-      }
+  const { user } = useAuth();
 
-      console.log('Saving all data to Supabase for user:', user.id);
-      
-      const dataToSave = {
-        id: user.id,
-        stats: stats,
-        settings: profile,
-        quests: quests,
-        habits: habits,
-        journal_entries: journalEntries,
-        skill_tree: skillTree,
-        mastered_skills: Array.from(masteredSkills),
-        onboarding_complete: true,
-        updated_at: new Date().toISOString(),
+  // Load player data from local storage
+  useEffect(() => {
+    if (user) {
+      const loadPlayerData = async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            console.log('No user found, skipping Supabase load');
+            return;
+          }
+
+          console.log('Loading player data from Supabase for user:', user.id);
+          
+          const { data, error } = await supabase
+            .from('data')  // FIXED: Changed from 'profiles' to 'data'
+            .select('*')
+            .eq('id', user.id);
+
+          if (error) {
+            console.error("Supabase load error:", error);
+            toast.error("Failed to load from cloud: " + error.message);
+          } else {
+            if (data && data.length > 0) {
+              const { stats, settings } = data[0];
+              setStats(stats);
+              setProfile(settings);
+            } else {
+              console.log('No data found in Supabase for user:', user.id);
+            }
+          }
+        } catch (err) {
+          console.error('Error loading player data:', err);
+          toast.error('Failed to load progress. Check your connection.');
+        }
       };
 
-      const { error } = await supabase.from('profiles').upsert(dataToSave);
+      loadPlayerData();
+    }
+  }, [user]);
 
-      if (error) {
-        console.error("Supabase save error:", error);
-        toast.error("Failed to save to cloud: " + error.message);
-      } else {
-        console.log('Successfully saved all data to Supabase');
-        toast.success('Progress saved to cloud!');
+  // Save player data to local storage and Supabase
+  const savePlayerData = async () => {
+    try {
+      const statsToSave = JSON.stringify(stats);
+      const settingsToSave = JSON.stringify(settings);
+      
+      localStorage.setItem('playerStats', statsToSave);
+      localStorage.setItem('playerProfile', settingsToSave);
+      
+      // Save to Supabase if user is logged in
+      if (user) {
+        console.log('Saving to Supabase for user:', user.id);
+        
+        const profileData = {
+          stats,
+          settings,
+          updated_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase
+          .from('data')  // FIXED: Changed from 'profiles' to 'data'
+          .update(profileData)
+          .eq('id', user.id);
+
+        if (error) {
+          console.error('Supabase save error:', error);
+          toast.error('Failed to save to cloud: ' + error.message);
+        } else {
+          console.log('Successfully saved to Supabase');
+        }
       }
-    } catch (err) {
-      console.error('Error saving to Supabase:', err);
-      toast.error('Failed to save to cloud. Check your connection.');
+    } catch (error) {
+      console.error('Error saving player data:', error);
+      toast.error('Failed to save progress');
     }
   };
 
   // Auto-save to Supabase every 30 seconds if there's data
   useEffect(() => {
     if (stats.name) { // Only save if user has completed onboarding
-      const interval = setInterval(saveToSupabase, 30000); // Save every 30 seconds
+      const interval = setInterval(savePlayerData, 30000); // Save every 30 seconds
       return () => clearInterval(interval);
     }
   }, [stats, profile, quests, habits, journalEntries, skillTree, masteredSkills]);
@@ -672,7 +708,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('onboardingComplete', 'true');
     
     // Save to Supabase immediately after onboarding
-    setTimeout(saveToSupabase, 1000);
+    setTimeout(savePlayerData, 1000);
   };
 
   const clearLevelUpData = () => setLevelUpData(null);
@@ -761,7 +797,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
 
     // Save to Supabase after skill mastery
-    setTimeout(saveToSupabase, 2000);
+    setTimeout(savePlayerData, 2000);
   };
 
   const startSkillQuest = (skillId: string) => {
@@ -1081,7 +1117,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
 
     // Save to Supabase after significant changes
-    setTimeout(saveToSupabase, 2000);
+    setTimeout(savePlayerData, 2000);
   };
 
   const toggleHabit = (habitId: string) => {

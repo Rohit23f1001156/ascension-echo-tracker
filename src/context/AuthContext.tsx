@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               console.error('Error fetching profile:', error);
               toast.error('Error loading your profile. Check your database setup.');
             }
-          } else if (profile && profile.onboarding_complete) {
+          } else if (profile && profile.onboarding_complete === true) {
             console.log('Loading existing profile from Supabase:', profile);
             
             // Load all saved data from Supabase
