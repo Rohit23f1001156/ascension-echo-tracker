@@ -1,8 +1,5 @@
 
-import React from "react";
-import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,200 +9,175 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePlayer } from "@/context/PlayerContext";
-import { PlusCircle, Trash2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus } from "lucide-react";
+import { skillTreeData } from "@/data/skillTreeData";
 
-const questFormSchema = z.object({
-  pathId: z.string().min(1, "Please select a path."),
-  name: z.string().min(3, "Quest name must be at least 3 characters."),
-  tasks: z.array(z.object({ value: z.string().min(1, "Task cannot be empty.") })).min(1, "At least one task is required."),
-  difficulty: z.enum(["Easy", "Medium", "Hard"]),
-  xp: z.coerce.number().min(10, "XP must be at least 10."),
-});
+export const AddQuestDialog = () => {
+  const [open, setOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    tasks: [""],
+    xp: 100,
+    pathId: "",
+    difficulty: "Medium" as "Easy" | "Medium" | "Hard"
+  });
 
-type QuestFormValues = z.infer<typeof questFormSchema>;
+  const { addCustomSkillNode } = usePlayer();
 
-export function AddQuestDialog() {
-  const { skillTree, addSkillNode } = usePlayer();
-  const [isOpen, setIsOpen] = React.useState(false);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim() || !formData.pathId || formData.tasks.filter(t => t.trim()).length === 0) {
+      return;
+    }
 
-  const form = useForm<QuestFormValues>({
-    resolver: zodResolver(questFormSchema),
-    defaultValues: {
-      pathId: "",
+    const newNode = {
+      name: formData.name,
+      description: formData.description,
+      tasks: formData.tasks.filter(task => task.trim() !== ""),
+      xp: formData.xp,
+      pathId: formData.pathId,
+      isCustom: true
+    };
+
+    addCustomSkillNode(newNode);
+    
+    setFormData({
       name: "",
-      tasks: [{ value: "" }],
-      difficulty: "Medium",
+      description: "",
+      tasks: [""],
       xp: 100,
-    },
-  });
+      pathId: "",
+      difficulty: "Medium"
+    });
+    setOpen(false);
+  };
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "tasks",
-  });
+  const addTask = () => {
+    setFormData(prev => ({
+      ...prev,
+      tasks: [...prev.tasks, ""]
+    }));
+  };
 
-  function onSubmit(data: QuestFormValues) {
-    const { pathId, name, difficulty, xp } = data;
-    const tasks = data.tasks.map(t => t.value);
-    addSkillNode({ pathId, name, tasks, difficulty, xp });
-    form.reset();
-    setIsOpen(false);
-  }
+  const updateTask = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tasks: prev.tasks.map((task, i) => i === index ? value : task)
+    }));
+  };
+
+  const removeTask = (index: number) => {
+    if (formData.tasks.length > 1) {
+      setFormData(prev => ({
+        ...prev,
+        tasks: prev.tasks.filter((_, i) => i !== index)
+      }));
+    }
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <PlusCircle />
-          Add New Quest
+          <Plus className="mr-2 h-4 w-4" />
+          Add Custom Skill
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Your Own Quest</DialogTitle>
+          <DialogTitle>Create Custom Skill</DialogTitle>
           <DialogDescription>
-            Design a new challenge to conquer. Fill out the details below.
+            Add a custom skill to your skill tree.
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <ScrollArea className="h-96 pr-6">
-            <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="pathId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Skill Path</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a path" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {skillTree.map((path) => (
-                        <SelectItem key={path.id} value={path.id}>
-                          {path.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quest Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., 'Learn Advanced CSS'" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="skill-path">Skill Path</Label>
+            <Select value={formData.pathId} onValueChange={(value) => setFormData(prev => ({ ...prev, pathId: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a skill path" />
+              </SelectTrigger>
+              <SelectContent>
+                {skillTreeData.map((path) => (
+                  <SelectItem key={path.id} value={path.id}>
+                    {path.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            <div>
-              <FormLabel>Tasks to Master</FormLabel>
-              <div className="space-y-2 mt-2">
-              {fields.map((field, index) => (
-                <FormField
-                  control={form.control}
-                  key={field.id}
-                  name={`tasks.${index}.value`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <div className="flex items-center gap-2">
-                          <Input placeholder={`Task ${index + 1}`} {...field} />
-                          <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
-                            <Trash2 />
-                          </Button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+          <div>
+            <Label htmlFor="skill-name">Skill Name</Label>
+            <Input
+              id="skill-name"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Enter skill name"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="skill-description">Description</Label>
+            <Textarea
+              id="skill-description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Describe this skill"
+              rows={2}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="skill-xp">XP Reward</Label>
+            <Input
+              id="skill-xp"
+              type="number"
+              min="50"
+              max="1000"
+              step="50"
+              value={formData.xp}
+              onChange={(e) => setFormData(prev => ({ ...prev, xp: parseInt(e.target.value) || 100 }))}
+            />
+          </div>
+
+          <div>
+            <Label>Tasks to Complete</Label>
+            {formData.tasks.map((task, index) => (
+              <div key={index} className="flex gap-2 mt-2">
+                <Input
+                  value={task}
+                  onChange={(e) => updateTask(index, e.target.value)}
+                  placeholder={`Task ${index + 1}`}
                 />
-              ))}
+                {formData.tasks.length > 1 && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => removeTask(index)}>
+                    Remove
+                  </Button>
+                )}
               </div>
-              <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => append({ value: "" })}>
-                <PlusCircle className="mr-2" />
-                Add Task
-              </Button>
-            </div>
-            
-            <FormField
-              control={form.control}
-              name="difficulty"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Difficulty</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a difficulty" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Easy">Easy</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="xp"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>XP Reward</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="e.g., 250" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            </div>
-            </ScrollArea>
-            <DialogFooter className="mt-4">
-                <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                </DialogClose>
-              <Button type="submit">Add Quest</Button>
-            </DialogFooter>
-          </form>
-        </Form>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={addTask} className="mt-2">
+              Add Task
+            </Button>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">Add Skill</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
-}
-
+};

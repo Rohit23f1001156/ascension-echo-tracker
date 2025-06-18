@@ -1,10 +1,11 @@
+
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Flame, Repeat, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Flame, Repeat, Edit, Trash2, TrendingDown } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import { toast } from "@/components/ui/sonner";
 import { EditQuestDialog } from "@/components/EditQuestDialog";
@@ -23,39 +24,37 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const DailyQuests = () => {
-  const { quests, completedQuests, toggleQuest, stats, setConfettiConfig, deleteQuest } = usePlayer();
+  const { quests, habits, completedQuests, toggleQuest, stats, setConfettiConfig, deleteQuest } = usePlayer();
   const [allGoodQuestsWereDone, setAllGoodQuestsWereDone] = useState(false);
   
-  const totalXpPossible = useMemo(() => quests.filter(q => q.type === 'good').reduce((sum, q) => sum + q.xp, 0), [quests]);
-  const currentXpEarned = useMemo(() => {
-    return quests
-      .filter(q => completedQuests.has(q.id))
-      .reduce((sum, q) => {
-        if (q.type === 'good') {
-          return sum + q.xp;
-        }
-        // For this page's display, we only show positive XP earned.
-        // The total XP calculation is handled in the context.
-        return sum;
-      }, 0);
-  }, [completedQuests, quests]);
+  // Combine quests and habits for display
+  const allQuests = [...quests, ...habits];
   
-  const currentNetXp = useMemo(() => {
-    return quests
-      .filter(q => completedQuests.has(q.id))
-      .reduce((sum, q) => {
-        return sum + (q.type === 'good' ? q.xp : -q.xp);
-      }, 0);
-  }, [completedQuests, quests]);
+  const totalXpPossible = useMemo(() => 
+    allQuests.filter(q => q.type === 'good').reduce((sum, q) => sum + q.xp, 0), 
+    [allQuests]
+  );
+  
+  const currentXpEarned = useMemo(() => {
+    return allQuests
+      .filter(q => completedQuests.has(q.id) && q.type === 'good')
+      .reduce((sum, q) => sum + q.xp, 0);
+  }, [completedQuests, allQuests]);
+  
+  const currentDamageTaken = useMemo(() => {
+    return allQuests
+      .filter(q => completedQuests.has(q.id) && q.type === 'bad')
+      .reduce((sum, q) => sum + q.xp, 0);
+  }, [completedQuests, allQuests]);
 
-  const goodQuests = useMemo(() => quests.filter(q => q.type === 'good'), [quests]);
+  const goodQuests = useMemo(() => allQuests.filter(q => q.type === 'good'), [allQuests]);
   const allGoodQuestsCompleted = useMemo(() => {
     if (goodQuests.length === 0) return false;
     return goodQuests.every(q => completedQuests.has(q.id));
   }, [goodQuests, completedQuests]);
 
   useEffect(() => {
-    if (allGoodQuestsCompleted && !allGoodQuestsWereDone) {
+    if (allGoodQuestsCompleted && goodQuests.length > 0 && !allGoodQuestsWereDone) {
       toast.success("All Daily Quests Complete!", {
         description: "Incredible work! You've conquered the day.",
       });
@@ -67,7 +66,7 @@ const DailyQuests = () => {
     } else if (!allGoodQuestsCompleted) {
       setAllGoodQuestsWereDone(false);
     }
-  }, [allGoodQuestsCompleted, allGoodQuestsWereDone, setConfettiConfig]);
+  }, [allGoodQuestsCompleted, allGoodQuestsWereDone, setConfettiConfig, goodQuests.length]);
 
   const xpProgress = totalXpPossible > 0 ? (currentXpEarned / totalXpPossible) * 100 : 0;
 
@@ -93,28 +92,47 @@ const DailyQuests = () => {
         <CardHeader>
           <CardTitle>Daily Progress</CardTitle>
           <CardDescription>
-            You've gained a net of {currentNetXp} XP today. Total possible from good habits: {totalXpPossible} XP.
+            You've gained {currentXpEarned} XP today from good habits.
+            {currentDamageTaken > 0 && (
+              <span className="text-destructive ml-2">
+                Lost {currentDamageTaken} XP from bad habits.
+              </span>
+            )}
+            {" "}Total possible: {totalXpPossible} XP.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Progress value={xpProgress} className="h-4" />
-          <div className="flex items-center text-muted-foreground mt-2">
-            <Flame className="w-4 h-4 mr-2 text-orange-500" />
-            <span>{stats.streak || 0} Day Streak</span>
+          <div className="flex items-center justify-between text-muted-foreground mt-2">
+            <div className="flex items-center">
+              <Flame className="w-4 h-4 mr-2 text-orange-500" />
+              <span>{stats.streak || 0} Day Streak</span>
+            </div>
+            {currentDamageTaken > 0 && (
+              <div className="flex items-center text-destructive">
+                <TrendingDown className="w-4 h-4 mr-2" />
+                <span>-{currentDamageTaken} XP damage</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
       
       <div className="space-y-4">
-        {quests.map((quest) => (
-          <Card key={quest.id} className={`bg-card/80 border-primary/20 transition-all ${completedQuests.has(quest.id) ? 'border-primary bg-primary/10' : ''}`}>
+        {allQuests.map((quest) => (
+          <Card key={quest.id} className={`bg-card/80 border-primary/20 transition-all ${
+            completedQuests.has(quest.id) 
+              ? quest.type === 'good' 
+                ? 'border-green-500/50 bg-green-500/10' 
+                : 'border-destructive/50 bg-destructive/10'
+              : 'hover:border-primary/40'
+          }`}>
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-4 flex-1">
                 <Checkbox
                   id={quest.id}
                   checked={completedQuests.has(quest.id)}
                   onCheckedChange={() => toggleQuest(quest.id)}
-                  disabled={quest.isRecurring && completedQuests.has(quest.id)}
                 />
                 <label htmlFor={quest.id} className="font-medium cursor-pointer flex-1">
                   {quest.title}
@@ -132,8 +150,12 @@ const DailyQuests = () => {
                     )}
                   </div>
                 )}
-                {quest.difficulty && <div className="text-xs font-semibold text-muted-foreground border rounded-full px-2 py-0.5">{quest.difficulty}</div>}
-                <div className={`font-bold ${quest.type === 'good' ? 'text-primary' : 'text-destructive'}`}>
+                {quest.difficulty && (
+                  <div className="text-xs font-semibold text-muted-foreground border rounded-full px-2 py-0.5">
+                    {quest.difficulty}
+                  </div>
+                )}
+                <div className={`font-bold ${quest.type === 'good' ? 'text-green-500' : 'text-destructive'}`}>
                   {quest.type === 'good' ? '+' : '-'}{quest.xp} XP
                 </div>
                 <EditQuestDialog quest={quest}>
