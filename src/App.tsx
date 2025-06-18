@@ -49,8 +49,8 @@ const AppRoutes = () => {
   const { session, loading } = useAuth();
   const { stats } = usePlayer();
   
-  // FIXED: Better onboarding complete check
-  const onboardingComplete = localStorage.getItem("onboardingComplete") === "true" && stats.name;
+  // FIXED: Proper onboarding complete check
+  const onboardingComplete = stats.name && stats.name.length > 0;
 
   if (loading) {
     return (

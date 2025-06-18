@@ -2,6 +2,38 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import { toast } from '@/components/ui/sonner';
+import ReactConfetti from 'react-confetti';
+import { Flame } from 'lucide-react';
+
+// Skill Tree Types
+export interface SkillNode {
+  id: string;
+  name: string;
+  description: string;
+  xp: number;
+  tasks: string[];
+  dependencies: string[];
+  isCustom?: boolean;
+}
+
+export interface SkillPath {
+  id: string;
+  name: string;
+  description: string;
+  nodes: SkillNode[];
+}
+
+// Date utility functions
+const isToday = (date: Date): boolean => {
+  const today = new Date();
+  return date.toDateString() === today.toDateString();
+};
+
+const isYesterday = (date: Date): boolean => {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return date.toDateString() === yesterday.toDateString();
+};
 
 // Interfaces
 export interface Quest {
@@ -108,6 +140,57 @@ interface PlayerContextType {
   addJournalEntry: (entryData: Omit<JournalEntry, 'id' | 'createdAt'>, editingEntryId: string | null) => void;
   deleteJournalEntry: (entryId: string) => void;
 }
+
+// Initial Skill Tree Data
+const initialSkillTreeData: SkillPath[] = [
+  {
+    id: 'fitness',
+    name: 'Physical Mastery',
+    description: 'Build strength and endurance',
+    nodes: [
+      {
+        id: 'basic-fitness',
+        name: 'Basic Fitness',
+        description: 'Start your fitness journey',
+        xp: 100,
+        tasks: ['Do 10 push-ups', 'Walk for 30 minutes', 'Drink 8 glasses of water'],
+        dependencies: [],
+      },
+      {
+        id: 'strength-training',
+        name: 'Strength Training',
+        description: 'Build muscle and power',
+        xp: 250,
+        tasks: ['Complete a strength workout', 'Lift weights for 45 minutes', 'Do 50 push-ups'],
+        dependencies: ['basic-fitness'],
+      },
+    ],
+  },
+  {
+    id: 'mental',
+    name: 'Mental Fortitude',
+    description: 'Develop focus and intelligence',
+    nodes: [
+      {
+        id: 'meditation',
+        name: 'Meditation',
+        description: 'Find inner peace',
+        xp: 150,
+        tasks: ['Meditate for 10 minutes', 'Practice deep breathing', 'Journal your thoughts'],
+        dependencies: [],
+      },
+    ],
+  },
+];
+
+// Add Full Screen Level Up Animation component
+const FullScreenLevelUpAnimation = () => (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 pointer-events-none">
+    <div className="text-6xl font-bold text-primary animate-pulse">
+      LEVEL UP!
+    </div>
+  </div>
+);
 
 // A new reusable sorting function
 const sortSkillNodes = (nodes: SkillNode[]): SkillNode[] => {
@@ -409,16 +492,17 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
           const { data, error } = await supabase
             .from('data')  // FIXED: Changed from 'profiles' to 'data'
             .select('*')
-            .eq('id', user.id);
+            .eq('id', user.id)
+            .single(); // FIXED: Added .single() to prevent 406 errors
 
           if (error) {
             console.error("Supabase load error:", error);
             toast.error("Failed to load from cloud: " + error.message);
           } else {
-            if (data && data.length > 0) {
-              const { stats, settings } = data[0];
-              setStats(stats);
-              setProfile(settings);
+            if (data) {
+              const { stats, settings } = data;
+              if (stats) setStats(prev => ({ ...prev, ...stats }));
+              if (settings) setProfile(prev => ({ ...prev, ...settings }));
             } else {
               console.log('No data found in Supabase for user:', user.id);
             }
@@ -437,10 +521,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const savePlayerData = async () => {
     try {
       const statsToSave = JSON.stringify(stats);
-      const settingsToSave = JSON.stringify(settings);
+      const profileToSave = JSON.stringify(profile);
       
       localStorage.setItem('playerStats', statsToSave);
-      localStorage.setItem('playerProfile', settingsToSave);
+      localStorage.setItem('playerProfile', profileToSave);
       
       // Save to Supabase if user is logged in
       if (user) {
@@ -448,12 +532,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         
         const profileData = {
           stats,
-          settings,
+          settings: profile, // FIXED: Use 'profile' instead of undefined 'settings'
           updated_at: new Date().toISOString()
         };
 
         const { error } = await supabase
-          .from('data')  // FIXED: Changed from 'profiles' to 'data'
+          .from('data')  // FIXED: Using 'data' instead of 'profiles'
           .update(profileData)
           .eq('id', user.id);
 
@@ -661,13 +745,11 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         let newXp = prevStats.xp + xpGained;
         let { level: newLevel, xpForNextLevel: newXpNextLevel } = calculateLevelFromXP(newXp);
         let newStatPointsToAllocate = prevStats.statPointsToAllocate;
-        let leveledUp = false;
         let awardedPerk: Buff | null = null;
         let newBuffs = prevStats.buffs.filter(b => b.expiry > Date.now());
 
         // Check if we leveled up
         if (newLevel > prevStats.level) {
-          leveledUp = true;
           const levelsGained = newLevel - prevStats.level;
           newStatPointsToAllocate += levelsGained;
           setLevelUpData({ newLevel, perk: awardedPerk });
@@ -751,7 +833,6 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
        let newXp = prevStats.xp + skillXp;
        let { level: newLevel, xpForNextLevel: newXpNextLevel } = calculateLevelFromXP(newXp);
        let newStatPointsToAllocate = prevStats.statPointsToAllocate;
-       let leveledUp = false;
        let awardedPerk: Buff | null = null;
        
        const now = Date.now();
@@ -759,7 +840,6 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
        // Check if we leveled up
        if (newLevel > prevStats.level) {
-         leveledUp = true;
          const levelsGained = newLevel - prevStats.level;
          newStatPointsToAllocate += levelsGained;
 
@@ -1071,15 +1151,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       let newXp = prevStats.xp + xpChange;
       let { level: newLevel, xpForNextLevel: newXpNextLevel } = calculateLevelFromXP(newXp);
       let newStatPointsToAllocate = prevStats.statPointsToAllocate;
-      let leveledUp = false;
       let awardedPerk: Buff | null = null;
       
-      const now = Date.now();
-      let newBuffs = prevStats.buffs.filter(b => b.expiry > now);
-
       // Check if we leveled up
       if (newLevel > prevStats.level) {
-        leveledUp = true;
         const levelsGained = newLevel - prevStats.level;
         newStatPointsToAllocate += levelsGained;
 
@@ -1111,7 +1186,6 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         xpNextLevel: newXpNextLevel,
         title: newTitle,
         statPointsToAllocate: newStatPointsToAllocate,
-        buffs: newBuffs,
         coins: Math.max(0, prevStats.coins + coinsChange),
       };
     });
@@ -1171,11 +1245,9 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         let { level: newLevel, xpForNextLevel: newXpNextLevel } = calculateLevelFromXP(newXp);
         const newCoins = prevStats.coins + coinsChange;
         let newStatPointsToAllocate = prevStats.statPointsToAllocate;
-        let leveledUp = false;
         
         // Check if we leveled up
         if (newLevel > prevStats.level) {
-          leveledUp = true;
           const levelsGained = newLevel - prevStats.level;
           newStatPointsToAllocate += levelsGained;
           setLevelUpAnimation(true);

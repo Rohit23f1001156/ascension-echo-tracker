@@ -46,9 +46,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           console.log('Syncing profile for user:', session.user.id);
           
-          // Check if profile exists in 'data' table - using .single() to ensure JSON response
+          // FIXED: Check if profile exists in 'data' table with .single()
           const { data: profile, error } = await supabase
-            .from('data')
+            .from('data')  // FIXED: Using 'data' instead of 'profiles'
             .select('*')
             .eq('id', session.user.id)
             .single();
@@ -56,7 +56,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (error) {
             if (error.code === 'PGRST116') {
               console.log('No profile found - user needs to complete onboarding');
-              // Clear local data and let user go through onboarding
               clearPlayerData();
               toast.info('Welcome! Please complete your profile setup.');
             } else {
@@ -66,7 +65,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           } else if (profile && profile.onboarding_complete === true) {
             console.log('Loading existing profile from Supabase:', profile);
             
-            // Load all saved data from Supabase
+            // FIXED: Load all saved data from Supabase properly
             if (profile.stats) {
               localStorage.setItem('playerStats', JSON.stringify(profile.stats));
               console.log('Loaded stats from Supabase:', profile.stats);
