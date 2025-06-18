@@ -103,7 +103,7 @@ const Onboarding = () => {
         return;
       }
 
-      // First check if profile already exists in 'data' table
+      // First check if profile already exists in 'data' table - using .single() for JSON response
       const { data: existingProfile } = await supabase
         .from('data')
         .select('id')
@@ -122,7 +122,7 @@ const Onboarding = () => {
         ...formStats,
         level: 1,
         xp: 0,
-        xpNextLevel: 1000, // First level needs 1000 XP
+        xpNextLevel: 1000,
         class: "Novice",
         title: "Newcomer",
         skills: 0,
@@ -151,16 +151,12 @@ const Onboarding = () => {
 
       console.log('Creating complete profile in Supabase for user:', user.id);
       
+      // Only insert the core columns that exist in your schema
       const profileData = {
         id: user.id,
         updated_at: new Date().toISOString(),
         stats: statsToSave,
         settings: settingsToSave,
-        quests: [],
-        habits: [],
-        journal_entries: [],
-        skill_tree: null,
-        mastered_skills: [],
         onboarding_complete: true,
       };
 

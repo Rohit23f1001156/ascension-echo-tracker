@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
@@ -45,7 +46,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           console.log('Syncing profile for user:', session.user.id);
           
-          // Check if profile exists in 'data' table
+          // Check if profile exists in 'data' table - using .single() to ensure JSON response
           const { data: profile, error } = await supabase
             .from('data')
             .select('*')
@@ -73,23 +74,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (profile.settings) {
               localStorage.setItem('playerProfile', JSON.stringify(profile.settings));
               console.log('Loaded settings from Supabase:', profile.settings);
-            }
-            
-            // Load additional game data if available
-            if (profile.quests) {
-              localStorage.setItem('playerQuests', JSON.stringify(profile.quests));
-            }
-            if (profile.habits) {
-              localStorage.setItem('playerHabits', JSON.stringify(profile.habits));
-            }
-            if (profile.journal_entries) {
-              localStorage.setItem('journalEntries', JSON.stringify(profile.journal_entries));
-            }
-            if (profile.skill_tree) {
-              localStorage.setItem('skillTree', JSON.stringify(profile.skill_tree));
-            }
-            if (profile.mastered_skills) {
-              localStorage.setItem('masteredSkills', JSON.stringify(profile.mastered_skills));
             }
             
             localStorage.setItem('onboardingComplete', 'true');
