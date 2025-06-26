@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -21,10 +22,8 @@ import {
   Star,
   DollarSign,
   RotateCcw,
-  ArrowUp,
   PenSquare,
   LogOut,
-  Coins,
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import SharedLayout from "@/components/layout/SharedLayout";
@@ -54,6 +53,7 @@ import AiCompanion from "@/components/AiCompanion";
 import AnalyticsChart from "@/components/AnalyticsChart";
 import LevelUpDialog from "@/components/LevelUpDialog";
 import FloatingCoins from "@/components/FloatingCoins";
+import { useNavigate } from "react-router-dom";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests", description: "Complete your daily challenges and build consistent habits" },
@@ -74,16 +74,17 @@ const motivationalQuotes = [
 ];
 
 const Index = () => {
-  const { stats: systemStats, levelUpAnimation, levelUpData, clearLevelUpData } = usePlayer();
+  const { stats: systemStats, levelUpAnimation, levelUpData, clearLevelUpData, resetAllData } = usePlayer();
   const [quote, setQuote] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     setQuote(motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)]);
   }, []);
 
-  const handleRestart = () => {
-    localStorage.clear();
-    window.location.reload();
+  const handleRestart = async () => {
+    await resetAllData();
+    navigate('/onboarding');
   };
 
   const handleLogout = async () => {
@@ -147,9 +148,9 @@ const Index = () => {
                       <div className="space-y-1">
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-muted-foreground">XP</span>
-                          <span className="font-mono text-xs">{systemStats.xp} / {systemStats.xpNextLevel}</span>
+                          <span className="font-mono text-xs">{systemStats.xp} / {systemStats.xp + systemStats.xpNextLevel}</span>
                         </div>
-                        <Progress value={(systemStats.xp / systemStats.xpNextLevel) * 100} className="h-2" />
+                        <Progress value={(systemStats.xpNextLevel > 0 ? ((systemStats.xp % (systemStats.xp + systemStats.xpNextLevel)) / (systemStats.xp + systemStats.xpNextLevel)) * 100 : 0)} className="h-2" />
                       </div>
                     </div>
                   </div>
@@ -199,21 +200,23 @@ const Index = () => {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogTitle>Reset All Progress?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete your progress and you will have to start over.
+                            This will permanently delete ALL your progress including stats, quests, journal entries, skill tree progress, and calendar history. You will need to complete onboarding again. This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleRestart}>Yes, Restart</AlertDialogAction>
+                          <AlertDialogAction onClick={handleRestart} className="bg-destructive hover:bg-destructive/90">
+                            Yes, Reset Everything
+                          </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Reset all progress and start fresh</p>
+                  <p>Reset all progress and start fresh (does not log you out)</p>
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
@@ -227,7 +230,7 @@ const Index = () => {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            You will be returned to the login page.
+                            You will be returned to the login page. Your progress is automatically saved to the cloud.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

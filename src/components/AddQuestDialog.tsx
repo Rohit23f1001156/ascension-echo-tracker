@@ -38,7 +38,6 @@ const questFormSchema = z.object({
   pathId: z.string().min(1, "Please select a path."),
   name: z.string().min(3, "Quest name must be at least 3 characters."),
   tasks: z.array(z.object({ value: z.string().min(1, "Task cannot be empty.") })).min(1, "At least one task is required."),
-  difficulty: z.enum(["Easy", "Medium", "Hard"]),
   xp: z.coerce.number().min(10, "XP must be at least 10."),
 });
 
@@ -54,7 +53,6 @@ export function AddQuestDialog() {
       pathId: "",
       name: "",
       tasks: [{ value: "" }],
-      difficulty: "Medium",
       xp: 100,
     },
   });
@@ -65,9 +63,9 @@ export function AddQuestDialog() {
   });
 
   function onSubmit(data: QuestFormValues) {
-    const { pathId, name, difficulty, xp } = data;
+    const { pathId, name, xp } = data;
     const tasks = data.tasks.map(t => t.value);
-    addSkillNode({ pathId, name, tasks, difficulty, xp });
+    addSkillNode({ pathId, name, tasks, xp });
     form.reset();
     setIsOpen(false);
   }
@@ -159,28 +157,6 @@ export function AddQuestDialog() {
               </Button>
             </div>
             
-            <FormField
-              control={form.control}
-              name="difficulty"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Difficulty</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a difficulty" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Easy">Easy</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
              <FormField
               control={form.control}
               name="xp"
@@ -208,4 +184,3 @@ export function AddQuestDialog() {
     </Dialog>
   );
 }
-
