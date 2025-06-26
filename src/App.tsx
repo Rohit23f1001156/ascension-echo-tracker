@@ -49,8 +49,8 @@ const AppRoutes = () => {
   const { session, loading } = useAuth();
   const { stats } = usePlayer();
   
-  // FIXED: Proper onboarding complete check
-  const onboardingComplete = stats.name && stats.name.length > 0;
+  // Check if onboarding is complete by verifying name exists and is not empty
+  const onboardingComplete = stats.name && stats.name.trim().length > 0;
 
   if (loading) {
     return (
