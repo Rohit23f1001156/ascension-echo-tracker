@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import { toast } from '@/components/ui/sonner';
-import { initialSkillTreeData } from '@/data/skillTreeData';
+import { skillTreeData } from '@/data/skillTreeData';
 
 // Types
 export interface Stats {
@@ -21,6 +21,8 @@ export interface Stats {
   skills: number;
   streak: number;
   availablePoints: number;
+  statPointsToAllocate: number;
+  coins: number;
 }
 
 export interface Quest {
@@ -30,7 +32,18 @@ export interface Quest {
   type: 'good' | 'bad';
   isRecurring?: boolean;
   streak?: number;
-  difficulty?: string;
+  difficulty?: 'Easy' | 'Medium' | 'Hard';
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface Habit {
+  id: string;
+  title: string;
+  xp: number;
+  type: 'good' | 'bad';
+  streak: number;
+  isCompleted: boolean;
 }
 
 export interface QuestLogEntry {
@@ -39,14 +52,17 @@ export interface QuestLogEntry {
   xp: number;
   date: string;
   type: 'good' | 'bad';
+  questId: string;
 }
 
 export interface JournalEntry {
   id: string;
   date: string;
-  reflection?: string;
-  gratitude?: string[];
-  mood?: number;
+  title: string;
+  content: string;
+  tags: string[];
+  mood: string;
+  createdAt: string;
 }
 
 export interface SkillNode {
@@ -54,6 +70,7 @@ export interface SkillNode {
   name: string;
   description: string;
   xpRequired: number;
+  xp: number;
   tasks: string[];
   dependencies: string[];
   isUnlocked: boolean;
@@ -98,6 +115,8 @@ export interface CalendarData {
 interface PlayerContextType {
   stats: Stats;
   updateStats: (newStats: Partial<Stats>) => void;
+  updatePlayerProfile: (profileData: { name: string; class: string }) => void;
+  allocateStatPoint: (statName: string) => void;
   quests: Quest[];
   completedQuests: Set<string>;
   questLog: QuestLogEntry[];
@@ -105,12 +124,26 @@ interface PlayerContextType {
   skillTree: SkillPath[];
   calendarData: CalendarData;
   shadowTrials: ShadowTrial[];
+  habits: Habit[];
+  masteredSkills: Set<string>;
+  activeSkillQuests: Set<string>;
+  justMasteredSkillId: string | null;
   toggleQuest: (questId: string) => void;
   addQuest: (quest: Omit<Quest, 'id'>) => void;
+  updateQuest: (questId: string, updates: Partial<Quest>) => void;
   deleteQuest: (questId: string) => void;
-  addJournalEntry: (entry: Omit<JournalEntry, 'id'>) => void;
+  addHabit: (habit: Omit<Habit, 'id'>) => void;
+  toggleHabit: (habitId: string) => void;
+  deleteHabit: (habitId: string) => void;
+  addJournalEntry: (entry: Omit<JournalEntry, 'id' | 'createdAt'>, id?: string) => void;
+  deleteJournalEntry: (id: string) => void;
   addSkillNode: (nodeData: { pathId: string; name: string; tasks: string[]; xp: number }) => void;
+  updateSkillNode: (pathId: string, nodeId: string, updates: Partial<SkillNode>) => void;
   completeSkillNode: (pathId: string, nodeId: string) => void;
+  deleteSkillNode: (pathId: string, nodeId: string) => void;
+  startSkillQuest: (pathId: string, nodeId: string) => void;
+  cancelSkillQuest: (pathId: string, nodeId: string) => void;
+  toggleSkillTask: (pathId: string, nodeId: string, taskIndex: number) => void;
   levelUpAnimation: boolean;
   levelUpData: { newLevel: number; perk: Buff | null } | null;
   clearLevelUpData: () => void;
@@ -125,6 +158,7 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 // Utility functions
 const calculateXpForLevel = (level: number): number => {
   if (level === 0) return 0;
+  if (level === 1) return 800;
   return 800 + (level - 1) * 800;
 };
 
@@ -133,10 +167,9 @@ const calculateLevelFromXp = (xp: number): number => {
   return Math.floor((xp - 800) / 800) + 1;
 };
 
-const calculateXpToNextLevel = (currentXp: number): number => {
-  const currentLevel = calculateLevelFromXp(currentXp);
+const calculateXpToNextLevel = (currentXp: number, currentLevel: number): number => {
   const nextLevelXp = calculateXpForLevel(currentLevel + 1);
-  return nextLevelXp - currentXp;
+  return Math.max(0, nextLevelXp - currentXp);
 };
 
 const defaultStats: Stats = {
@@ -154,6 +187,8 @@ const defaultStats: Stats = {
   skills: 1,
   streak: 0,
   availablePoints: 0,
+  statPointsToAllocate: 0,
+  coins: 0,
 };
 
 const defaultShadowTrials: ShadowTrial[] = [
@@ -192,9 +227,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [completedQuests, setCompletedQuests] = useState<Set<string>>(new Set());
   const [questLog, setQuestLog] = useState<QuestLogEntry[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-  const [skillTree, setSkillTree] = useState<SkillPath[]>(initialSkillTreeData);
+  const [skillTree, setSkillTree] = useState<SkillPath[]>(skillTreeData);
   const [calendarData, setCalendarData] = useState<CalendarData>({});
   const [shadowTrials, setShadowTrials] = useState<ShadowTrial[]>(defaultShadowTrials);
+  const [habits, setHabits] = useState<Habit[]>([]);
+  
+  // Skill tracking state
+  const [masteredSkills, setMasteredSkills] = useState<Set<string>>(new Set());
+  const [activeSkillQuests, setActiveSkillQuests] = useState<Set<string>>(new Set());
+  const [justMasteredSkillId, setJustMasteredSkillId] = useState<string | null>(null);
   
   // UI state
   const [levelUpAnimation, setLevelUpAnimation] = useState(false);
@@ -218,6 +259,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         skillTree,
         calendarData,
         shadowTrials,
+        habits,
+        masteredSkills: Array.from(masteredSkills),
+        activeSkillQuests: Array.from(activeSkillQuests),
         updated_at: new Date().toISOString()
       };
 
@@ -232,7 +276,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             journalEntries: allData.journalEntries,
             skillTree: allData.skillTree,
             calendarData: allData.calendarData,
-            shadowTrials: allData.shadowTrials
+            shadowTrials: allData.shadowTrials,
+            habits: allData.habits,
+            masteredSkills: allData.masteredSkills,
+            activeSkillQuests: allData.activeSkillQuests
           },
           updated_at: allData.updated_at
         })
@@ -248,7 +295,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error('Error in saveAllDataToSupabase:', err);
       toast.error('Failed to save progress');
     }
-  }, [session, stats, quests, completedQuests, questLog, journalEntries, skillTree, calendarData, shadowTrials]);
+  }, [session, stats, quests, completedQuests, questLog, journalEntries, skillTree, calendarData, shadowTrials, habits, masteredSkills, activeSkillQuests]);
 
   // Load all data from Supabase
   const loadAllDataFromSupabase = useCallback(async () => {
@@ -283,6 +330,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (settings.skillTree) setSkillTree(settings.skillTree);
           if (settings.calendarData) setCalendarData(settings.calendarData);
           if (settings.shadowTrials) setShadowTrials(settings.shadowTrials);
+          if (settings.habits) setHabits(settings.habits);
+          if (settings.masteredSkills) setMasteredSkills(new Set(settings.masteredSkills));
+          if (settings.activeSkillQuests) setActiveSkillQuests(new Set(settings.activeSkillQuests));
         }
 
         console.log('Successfully loaded all data from Supabase');
@@ -309,9 +359,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             completedQuests: [],
             questLog: [],
             journalEntries: [],
-            skillTree: initialSkillTreeData,
+            skillTree: skillTreeData,
             calendarData: {},
-            shadowTrials: defaultShadowTrials
+            shadowTrials: defaultShadowTrials,
+            habits: [],
+            masteredSkills: [],
+            activeSkillQuests: []
           },
           onboarding_complete: false,
           updated_at: new Date().toISOString()
@@ -330,9 +383,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setCompletedQuests(new Set());
       setQuestLog([]);
       setJournalEntries([]);
-      setSkillTree(initialSkillTreeData);
+      setSkillTree(skillTreeData);
       setCalendarData({});
       setShadowTrials(defaultShadowTrials);
+      setHabits([]);
+      setMasteredSkills(new Set());
+      setActiveSkillQuests(new Set());
 
       toast.success('All progress has been reset');
       console.log('Successfully reset all data');
@@ -370,6 +426,32 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [session, loadAllDataFromSupabase]);
 
+  // Update player profile
+  const updatePlayerProfile = useCallback((profileData: { name: string; class: string }) => {
+    setStats(prev => ({
+      ...prev,
+      name: profileData.name,
+      class: profileData.class
+    }));
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Allocate stat point
+  const allocateStatPoint = useCallback((statName: string) => {
+    setStats(prev => {
+      if (prev.statPointsToAllocate <= 0) return prev;
+      
+      const newStats = {
+        ...prev,
+        statPointsToAllocate: prev.statPointsToAllocate - 1,
+        [statName]: (prev[statName as keyof Stats] as number) + 1
+      };
+      
+      return newStats;
+    });
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
   // Update stats with level calculation
   const updateStats = useCallback((newStats: Partial<Stats>) => {
     setStats(prevStats => {
@@ -381,18 +463,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const wasLevelUp = newLevel > prevStats.level;
         
         updatedStats.level = newLevel;
-        updatedStats.xpNextLevel = calculateXpToNextLevel(updatedStats.xp);
+        updatedStats.xpNextLevel = calculateXpToNextLevel(updatedStats.xp, newLevel);
         
         // Handle level up
         if (wasLevelUp) {
-          updatedStats.availablePoints += (newLevel - prevStats.level);
+          const pointsGained = newLevel - prevStats.level;
+          updatedStats.availablePoints += pointsGained;
+          updatedStats.statPointsToAllocate += pointsGained;
           setLevelUpAnimation(true);
           setLevelUpData({ newLevel, perk: null });
           
           setTimeout(() => setLevelUpAnimation(false), 3000);
           
           toast.success(`Level Up! You are now level ${newLevel}!`, {
-            description: `You gained ${newLevel - prevStats.level} stat point(s) to allocate!`,
+            description: `You gained ${pointsGained} stat point(s) to allocate!`,
           });
         }
       }
@@ -410,10 +494,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!quest) return;
 
     const isCompleting = !completedQuests.has(questId);
-    const xpChange = isCompleting ? quest.xp : -quest.xp;
+    const xpChange = quest.type === 'good' ? quest.xp : -quest.xp;
     
     // Prevent negative XP
-    const newXp = Math.max(0, stats.xp + (quest.type === 'good' ? xpChange : -xpChange));
+    const newXp = Math.max(0, stats.xp + (isCompleting ? xpChange : -xpChange));
     
     setCompletedQuests(prev => {
       const newSet = new Set(prev);
@@ -432,7 +516,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         title: quest.title,
         xp: quest.type === 'good' ? quest.xp : -quest.xp,
         date: new Date().toISOString(),
-        type: quest.type
+        type: quest.type,
+        questId: questId
       };
       
       setQuestLog(prev => [...prev, logEntry]);
@@ -468,6 +553,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
+  // Update quest
+  const updateQuest = useCallback((questId: string, updates: Partial<Quest>) => {
+    setQuests(prev => prev.map(q => q.id === questId ? { ...q, ...updates } : q));
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
   // Delete quest
   const deleteQuest = useCallback((questId: string) => {
     setQuests(prev => prev.filter(q => q.id !== questId));
@@ -479,14 +570,53 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
-  // Add journal entry
-  const addJournalEntry = useCallback((entryData: Omit<JournalEntry, 'id'>) => {
-    const newEntry: JournalEntry = {
-      ...entryData,
-      id: `journal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  // Add habit
+  const addHabit = useCallback((habitData: Omit<Habit, 'id'>) => {
+    const newHabit: Habit = {
+      ...habitData,
+      id: `habit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     };
     
-    setJournalEntries(prev => [...prev, newEntry]);
+    setHabits(prev => [...prev, newHabit]);
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Toggle habit
+  const toggleHabit = useCallback((habitId: string) => {
+    setHabits(prev => prev.map(h => 
+      h.id === habitId ? { ...h, isCompleted: !h.isCompleted } : h
+    ));
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Delete habit
+  const deleteHabit = useCallback((habitId: string) => {
+    setHabits(prev => prev.filter(h => h.id !== habitId));
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Add journal entry
+  const addJournalEntry = useCallback((entryData: Omit<JournalEntry, 'id' | 'createdAt'>, id?: string) => {
+    if (id) {
+      // Update existing entry
+      setJournalEntries(prev => prev.map(entry => 
+        entry.id === id ? { ...entry, ...entryData } : entry
+      ));
+    } else {
+      // Add new entry
+      const newEntry: JournalEntry = {
+        ...entryData,
+        id: `journal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: new Date().toISOString()
+      };
+      setJournalEntries(prev => [...prev, newEntry]);
+    }
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Delete journal entry
+  const deleteJournalEntry = useCallback((id: string) => {
+    setJournalEntries(prev => prev.filter(entry => entry.id !== id));
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
@@ -497,6 +627,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       name: nodeData.name,
       description: `Custom skill: ${nodeData.name}`,
       xpRequired: nodeData.xp,
+      xp: nodeData.xp,
       tasks: nodeData.tasks,
       dependencies: [],
       isUnlocked: true,
@@ -511,6 +642,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         : path
     ));
     
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Update skill node
+  const updateSkillNode = useCallback((pathId: string, nodeId: string, updates: Partial<SkillNode>) => {
+    setSkillTree(prev => prev.map(path => 
+      path.id === pathId 
+        ? {
+            ...path,
+            nodes: path.nodes.map(node => 
+              node.id === nodeId ? { ...node, ...updates } : node
+            )
+          }
+        : path
+    ));
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
@@ -529,6 +675,43 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         : path
     ));
     
+    setMasteredSkills(prev => new Set([...prev, nodeId]));
+    setJustMasteredSkillId(nodeId);
+    setTimeout(() => setJustMasteredSkillId(null), 3000);
+    
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Delete skill node
+  const deleteSkillNode = useCallback((pathId: string, nodeId: string) => {
+    setSkillTree(prev => prev.map(path => 
+      path.id === pathId 
+        ? { ...path, nodes: path.nodes.filter(node => node.id !== nodeId) }
+        : path
+    ));
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Start skill quest
+  const startSkillQuest = useCallback((pathId: string, nodeId: string) => {
+    setActiveSkillQuests(prev => new Set([...prev, nodeId]));
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Cancel skill quest
+  const cancelSkillQuest = useCallback((pathId: string, nodeId: string) => {
+    setActiveSkillQuests(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(nodeId);
+      return newSet;
+    });
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Toggle skill task
+  const toggleSkillTask = useCallback((pathId: string, nodeId: string, taskIndex: number) => {
+    // This would typically track individual task completion within a skill node
+    // For now, we'll just trigger a save
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
@@ -540,6 +723,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const value: PlayerContextType = {
     stats,
     updateStats,
+    updatePlayerProfile,
+    allocateStatPoint,
     quests,
     completedQuests,
     questLog,
@@ -547,12 +732,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     skillTree,
     calendarData,
     shadowTrials,
+    habits,
+    masteredSkills,
+    activeSkillQuests,
+    justMasteredSkillId,
     toggleQuest,
     addQuest,
+    updateQuest,
     deleteQuest,
+    addHabit,
+    toggleHabit,
+    deleteHabit,
     addJournalEntry,
+    deleteJournalEntry,
     addSkillNode,
+    updateSkillNode,
     completeSkillNode,
+    deleteSkillNode,
+    startSkillQuest,
+    cancelSkillQuest,
+    toggleSkillTask,
     levelUpAnimation,
     levelUpData,
     clearLevelUpData,

@@ -16,7 +16,7 @@ const WeeklySummary: React.FC = () => {
     // Only count XP from good habits for weekly summary
     const totalGoodXpThisWeek = weeklyLogs
         .filter(log => log.type === 'good')
-        .reduce((sum, log) => sum + log.xp, 0);
+        .reduce((sum, log) => sum + Math.max(0, log.xp), 0);
     
     const totalBadXpThisWeek = weeklyLogs
         .filter(log => log.type === 'bad')

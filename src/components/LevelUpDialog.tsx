@@ -51,10 +51,14 @@ const LevelUpDialog = ({ isOpen, onClose, levelUpInfo }: LevelUpDialogProps) => 
               <p className="text-muted-foreground italic">{levelUpInfo.perk.description}</p>
             </div>
           )}
+          <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 p-3 rounded-lg border border-yellow-400/30">
+            <p className="text-yellow-400 font-semibold">You have unspent stat points!</p>
+            <p className="text-sm text-muted-foreground">Want to assign them now or later?</p>
+          </div>
         </div>
         <DialogFooter className="sm:justify-center gap-3 relative z-10">
           <Button asChild className="px-8 py-3 text-lg font-bold bg-primary hover:bg-primary/80 shadow-lg transform hover:scale-105 transition-all">
-            <Link to="/stats" onClick={onClose}>🎯 Allocate Now</Link>
+            <Link to="/stats" onClick={onClose}>🎯 Assign Now</Link>
           </Button>
           <Button variant="outline" onClick={handleSkipForNow} className="px-8 py-3 text-lg border-primary/50 hover:bg-primary/10">
             Skip for Later
