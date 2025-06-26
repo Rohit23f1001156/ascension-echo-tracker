@@ -1,355 +1,236 @@
+
 import React, { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { usePlayer } from '@/context/PlayerContext';
-import { useNavigate } from 'react-router-dom';
-import SharedLayout from '@/components/layout/SharedLayout';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from "@/components/ui/checkbox";
-import { Slider } from "@/components/ui/slider";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { User, Shield, Swords, Brain, Heart, Crosshair, ChevronsUp, DollarSign, Clock } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
-import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { usePlayer } from "@/context/PlayerContext";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "@/components/ui/sonner";
 
-const onboardingSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  avatar: z.string(),
-  lifeAreas: z.array(z.string()).min(1, "Select at least one area."),
-  timeBudget: z.record(z.string(), z.number()).default({}),
-  strength: z.number().min(1).max(10),
-  stamina: z.number().min(1).max(10),
-  concentration: z.number().min(1).max(10),
-  intelligence: z.number().min(1).max(10),
-  wealth: z.number().min(1).max(10),
-  difficultyPreference: z.enum(['Easy', 'Medium', 'Hard']),
-});
-
-type OnboardingValues = z.infer<typeof onboardingSchema>;
-
-const lifeAreasOptions = [
-    "Fitness & Health",
-    "Learning & Skills",
-    "Career & Finance",
-    "Mindfulness & Mental Health",
-    "Social Life",
-    "Hobbies & Creativity"
+const classes = [
+  { id: 'shadow-hunter', name: 'Shadow Hunter', description: 'Master of stealth and precision' },
+  { id: 'code-warrior', name: 'Code Warrior', description: 'Digital architect and problem solver' },
+  { id: 'mind-sage', name: 'Mind Sage', description: 'Seeker of wisdom and knowledge' },
+  { id: 'iron-guardian', name: 'Iron Guardian', description: 'Defender of discipline and strength' }
 ];
-const avatarOptions = [
-    { value: 'user', label: 'Hunter', icon: <User className="w-6 h-6" /> },
-    { value: 'shield', label: 'Tanker', icon: <Shield className="w-6 h-6" /> },
-    { value: 'swords', label: 'Assassin', icon: <Swords className="w-6 h-6" /> },
-];
-
-const statOptions = [
-    { name: "strength", label: "Strength", icon: <ChevronsUp className="w-5 h-5 text-primary" />},
-    { name: "stamina", label: "Stamina", icon: <Heart className="w-5 h-5 text-primary" />},
-    { name: "concentration", label: "Concentration", icon: <Crosshair className="w-5 h-5 text-primary" />},
-    { name: "intelligence", label: "Intelligence", icon: <Brain className="w-5 h-5 text-primary" />},
-    { name: "wealth", label: "Wealth", icon: <DollarSign className="w-5 h-5 text-primary" />},
-] as const;
 
 const Onboarding = () => {
   const [step, setStep] = useState(1);
+  const [name, setName] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { updatePlayerProfile } = usePlayer();
-  const { user } = useAuth();
+  const { session } = useAuth();
   const navigate = useNavigate();
 
-  const { control, handleSubmit, trigger, getValues, watch } = useForm<OnboardingValues>({
-    resolver: zodResolver(onboardingSchema),
-    defaultValues: {
-      name: '',
-      avatar: 'user',
-      lifeAreas: [],
-      timeBudget: {},
-      strength: 5,
-      stamina: 5,
-      concentration: 5,
-      intelligence: 5,
-      wealth: 5,
-      difficultyPreference: 'Medium',
-    },
-  });
-
-  const selectedLifeAreas = watch('lifeAreas');
-
-  const nextStep = async () => {
-    let fieldsToValidate: (keyof OnboardingValues)[] = [];
-    if (step === 1) fieldsToValidate = ['name', 'avatar'];
-    if (step === 2) fieldsToValidate = ['lifeAreas'];
-    if (step === 4) fieldsToValidate = ['strength', 'stamina', 'concentration', 'intelligence', 'wealth'];
-    
-    const isValid = await trigger(fieldsToValidate);
-    if (isValid) setStep(s => s + 1);
+  const handleNext = () => {
+    if (step === 1 && name.trim()) {
+      setStep(2);
+    } else if (step === 2 && selectedClass) {
+      setStep(3);
+    }
   };
-  const prevStep = () => setStep(s => s - 1);
 
-  const onSubmit = async (data: OnboardingValues) => {
-    if (isSubmitting) return;
+  const handleComplete = async () => {
+    if (!name.trim() || !selectedClass || isSubmitting) return;
+    
     setIsSubmitting(true);
     
     try {
-      const { name, avatar, difficultyPreference, lifeAreas, timeBudget, ...formStats } = data;
+      // Update player profile
+      updatePlayerProfile({ name: name.trim(), class: selectedClass });
+      
+      // Check if profile exists, if not create it
+      if (session?.user?.id) {
+        const { data: existingProfile, error: fetchError } = await supabase
+          .from('data')
+          .select('id')
+          .eq('id', session.user.id)
+          .single();
 
-      if (!user) {
-        toast.error("Authentication error. Please log in again.");
-        return;
+        if (fetchError && fetchError.code === 'PGRST116') {
+          // Profile doesn't exist, create it
+          const { error: insertError } = await supabase
+            .from('data')
+            .insert({
+              id: session.user.id,
+              stats: { 
+                name: name.trim(), 
+                class: selectedClass,
+                level: 0,
+                xp: 0,
+                xpNextLevel: 1000,
+                strength: 1,
+                stamina: 1,
+                concentration: 1,
+                intelligence: 1,
+                wealth: 1,
+                skills: 1,
+                streak: 0,
+                availablePoints: 0,
+                statPointsToAllocate: 0,
+                coins: 0,
+                title: 'Novice'
+              },
+              settings: {},
+              onboarding_complete: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+            toast.error('Failed to create profile');
+            setIsSubmitting(false);
+            return;
+          }
+        } else if (!fetchError) {
+          // Profile exists, just mark onboarding as complete
+          const { error: updateError } = await supabase
+            .from('data')
+            .update({ 
+              onboarding_complete: true,
+              stats: { 
+                name: name.trim(), 
+                class: selectedClass,
+                level: 0,
+                xp: 0,
+                xpNextLevel: 1000,
+                strength: 1,
+                stamina: 1,
+                concentration: 1,
+                intelligence: 1,
+                wealth: 1,
+                skills: 1,
+                streak: 0,
+                availablePoints: 0,
+                statPointsToAllocate: 0,
+                coins: 0,
+                title: 'Novice'
+              },
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', session.user.id);
+
+          if (updateError) {
+            console.error('Error updating profile:', updateError);
+            toast.error('Failed to update profile');
+            setIsSubmitting(false);
+            return;
+          }
+        }
       }
-
-      // First check if profile already exists in 'data' table - using .single() for JSON response
-      const { data: existingProfile } = await supabase
-        .from('data')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-
-      if (existingProfile) {
-        toast.error("Profile already exists. Redirecting to dashboard.");
-        navigate('/');
-        return;
-      }
-
-      // Create stats object for local storage
-      const statsToSave = {
-        name,
-        avatar,
-        ...formStats,
-        level: 1,
-        xp: 0,
-        xpNextLevel: 1000,
-        class: "Novice",
-        title: "Newcomer",
-        skills: 0,
-        coins: 20,
-        statPointsToAllocate: 0,
-        streak: 0,
-        lastActivityDate: null,
-        buffs: [],
-        journalStreak: 0,
-        lastJournalEntryDate: null,
-      };
-
-      // Convert time budget from hours to minutes for better precision
-      const timeBudgetInMinutes: Record<string, number> = {};
-      Object.entries(timeBudget || {}).forEach(([area, hours]) => {
-        timeBudgetInMinutes[area] = (hours as number) * 60;
-      });
-
-      // Create settings object for local storage
-      const settingsToSave = { 
-        username: name,
-        class: avatar,
-        areas: lifeAreas,
-        time_commitment: timeBudgetInMinutes,
-        difficultyPreference 
-      };
-
-      console.log('Creating profile in Supabase for user:', user.id);
       
-      // CRITICAL: Only insert fields that exist in the data table schema
-      const profileData = {
-        id: user.id,
-        updated_at: new Date().toISOString(),
-        stats: {
-          strength: formStats.strength,
-          stamina: formStats.stamina,
-          intelligence: formStats.intelligence,
-          wealth: formStats.wealth,
-          concentration: formStats.concentration
-        },
-        settings: {
-          username: name,
-          class: avatar,
-          areas: lifeAreas
-        },
-        onboarding_complete: true
-      };
-
-      const { error } = await supabase.from('data').insert([profileData]);
-
-      if (error) {
-        console.error("Supabase profile creation error:", error);
-        toast.error("Failed to save your profile to the cloud. Please try again.");
-        return;
-      }
-
-      console.log('Profile created successfully in Supabase');
-      
-      // Update local state after successful Supabase save
-      updatePlayerProfile(statsToSave, settingsToSave);
-      localStorage.setItem("onboardingComplete", "true");
-      
-      toast.success(`Welcome, ${name}!`, {
-          description: "Your profile has been created! You've been granted 20 coins to start your journey.",
-      });
-      
+      toast.success('Welcome to Shadow Ascendant!');
       navigate('/');
-    } catch (err) {
-      console.error('Error during onboarding:', err);
-      toast.error('An error occurred during setup. Please try again.');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      toast.error('Something went wrong');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <SharedLayout>
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <Card className="w-full max-w-2xl bg-card/80 border-primary/20">
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <CardHeader>
-              <CardTitle className="text-3xl text-primary font-serif">Arise, Shadow!</CardTitle>
-              <CardDescription>Let's set up your profile to begin the journey.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {step === 1 && (
-                <div className="space-y-4 animate-fade-in">
-                  <h3 className="font-bold text-xl font-serif">Step 1: Your Identity</h3>
-                  <div>
-                    <Label htmlFor="name" className="font-serif">What is your name, hunter?</Label>
-                    <Controller name="name" control={control} render={({ field, fieldState }) => (
-                      <>
-                        <Input id="name" {...field} placeholder="e.g., Sung Jin-Woo" />
-                        {fieldState.error && <p className="text-destructive text-sm mt-1">{fieldState.error.message}</p>}
-                      </>
-                    )} />
-                  </div>
-                  <div>
-                    <Label className="font-serif">Choose your Avatar</Label>
-                     <Controller name="avatar" control={control} render={({ field }) => (
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <SelectTrigger><SelectValue placeholder="Select Avatar" /></SelectTrigger>
-                        <SelectContent>
-                          {avatarOptions.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              <div className="flex items-center gap-2">{opt.icon} {opt.label}</div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                     )} />
-                  </div>
-                </div>
-              )}
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-card/80 backdrop-blur-sm border-primary/20">
+        <CardHeader className="text-center">
+          <CardTitle className="text-3xl font-bold text-primary font-serif">Shadow Ascendant</CardTitle>
+          <CardDescription>Begin your journey to greatness</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {step === 1 && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold mb-2">What shall we call you?</h2>
+                <p className="text-sm text-muted-foreground">Choose a name that will strike fear into the hearts of your enemies.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Your Name</Label>
+                <Input
+                  id="name"
+                  placeholder="Enter your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleNext()}
+                />
+              </div>
+              <Button onClick={handleNext} disabled={!name.trim()} className="w-full">
+                Continue
+              </Button>
+            </div>
+          )}
 
-              {step === 2 && (
-                <div className="space-y-4 animate-fade-in">
-                  <h3 className="font-bold text-xl font-serif">Step 2: Areas to Conquer</h3>
-                  <div>
-                    <Label className="font-serif">Which life areas do you want to level up?</Label>
-                    <Controller name="lifeAreas" control={control} render={({ field, fieldState }) => (
-                        <div className="space-y-2 mt-2">
-                        {lifeAreasOptions.map(area => (
-                            <div key={area} className="flex items-center gap-2">
-                            <Checkbox
-                                id={area}
-                                checked={field.value.includes(area)}
-                                onCheckedChange={(checked) => {
-                                return checked
-                                    ? field.onChange([...field.value, area])
-                                    : field.onChange(field.value.filter(a => a !== area));
-                                }}
-                            />
-                            <Label htmlFor={area}>{area}</Label>
-                            </div>
-                        ))}
-                        {fieldState.error && <p className="text-destructive text-sm mt-1">{fieldState.error.message}</p>}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold mb-2">Choose Your Path</h2>
+                <p className="text-sm text-muted-foreground">Select a class that resonates with your soul.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Your Class</Label>
+                <Select value={selectedClass} onValueChange={setSelectedClass}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.name}>
+                        <div>
+                          <div className="font-medium">{cls.name}</div>
+                          <div className="text-sm text-muted-foreground">{cls.description}</div>
                         </div>
-                    )} />
-                  </div>
-                </div>
-              )}
-
-              {step === 3 && (
-                 <div className="space-y-6 animate-fade-in">
-                    <h3 className="font-bold text-xl font-serif">Step 3: Allocate Your Time</h3>
-                    <p className="text-muted-foreground font-serif">How many hours per day can you dedicate to each area?</p>
-                    {selectedLifeAreas.map(area => (
-                        <div key={area} className="space-y-2">
-                            <Label htmlFor={`time-${area}`} className="flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> {area}</Label>
-                            <Controller
-                                name={`timeBudget.${area}` as any}
-                                control={control}
-                                defaultValue={1}
-                                render={({ field }) => (
-                                    <div className="flex items-center gap-4">
-                                        <Slider
-                                            id={`time-${area}`}
-                                            min={0} max={8} step={0.5}
-                                            defaultValue={[field.value || 1]}
-                                            onValueChange={(value) => field.onChange(value[0])}
-                                        />
-                                        <span className="font-bold text-primary w-24 text-center">{field.value !== undefined ? `${field.value} hr(s)` : `1 hr(s)`}</span>
-                                    </div>
-                                )}
-                            />
-                        </div>
+                      </SelectItem>
                     ))}
-                 </div>
-              )}
-
-              {step === 4 && (
-                 <div className="space-y-6 animate-fade-in">
-                    <h3 className="font-bold text-xl font-serif">Step 4: Assess Your Power</h3>
-                    <p className="text-muted-foreground font-serif">Rate your current level in each stat from 1 to 10.</p>
-                    {statOptions.map(stat => (
-                        <div key={stat.name} className="space-y-2">
-                            <Label className="flex items-center gap-2">{stat.icon} {stat.label}</Label>
-                            <Controller name={stat.name} control={control} render={({ field }) => (
-                                <div className="flex items-center gap-4">
-                                <Slider
-                                    min={1} max={10} step={1}
-                                    defaultValue={[field.value]}
-                                    onValueChange={(value) => field.onChange(value[0])}
-                                />
-                                <span className="font-bold text-primary w-6 text-center">{getValues(stat.name)}</span>
-                                </div>
-                            )} />
-                        </div>
-                    ))}
-                 </div>
-              )}
-
-              {step === 5 && (
-                <div className="space-y-4 animate-fade-in">
-                  <h3 className="font-bold text-xl font-serif">Step 5: Mission Difficulty</h3>
-                  <div>
-                    <Label className="font-serif">Choose your preferred task difficulty.</Label>
-                     <Controller name="difficultyPreference" control={control} render={({ field }) => (
-                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="mt-2 grid grid-cols-3 gap-4">
-                           {['Easy', 'Medium', 'Hard'].map(diff => (
-                            <Label key={diff} htmlFor={diff} className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary">
-                               <RadioGroupItem value={diff} id={diff} className="sr-only" />
-                               {diff}
-                            </Label>
-                           ))}
-                        </RadioGroup>
-                     )} />
-                  </div>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              {step > 1 && <Button type="button" variant="outline" onClick={prevStep} disabled={isSubmitting}>Back</Button>}
-              <div/>
-              {step < 5 && <Button type="button" onClick={nextStep} disabled={isSubmitting}>Next</Button>}
-              {step === 5 && (
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating Profile...' : 'Begin Your Ascent'}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+                  Back
                 </Button>
-              )}
-            </CardFooter>
-          </form>
-        </Card>
-      </div>
-    </SharedLayout>
+                <Button onClick={handleNext} disabled={!selectedClass} className="flex-1">
+                  Continue
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold mb-2">Ready to Begin?</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Your journey as <span className="font-semibold text-primary">{name}</span>, 
+                  the <span className="font-semibold text-primary">{selectedClass}</span>, is about to begin.
+                </p>
+                <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
+                  <h3 className="font-semibold mb-2">What awaits you:</h3>
+                  <ul className="text-sm space-y-1 text-left">
+                    <li>• Daily quests to build discipline</li>
+                    <li>• Skill trees to master new abilities</li>
+                    <li>• XP and levels to track your growth</li>
+                    <li>• Shadow trials to test your limits</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
+                  Back
+                </Button>
+                <Button onClick={handleComplete} disabled={isSubmitting} className="flex-1">
+                  {isSubmitting ? 'Starting...' : 'Begin Journey'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

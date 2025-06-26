@@ -1,93 +1,116 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Save } from 'lucide-react';
-import { DialogFooter } from "@/components/ui/dialog";
-import type { JournalEntry } from '@/context/PlayerContext';
-
-const MOODS = ["😊", "😐", "😔", "😠", "🤩"];
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 
 interface JournalFormProps {
-  onSave: (data: Omit<JournalEntry, 'id' | 'createdAt'>) => void;
-  initialData: JournalEntry | null;
-  onClose: () => void;
+  entry?: {
+    id: string;
+    title: string;
+    content: string;
+    mood: string;
+    tags: string[];
+  };
+  onSave: (entry: { title: string; content: string; mood: string; tags: string[]; date: string }) => void;
+  onCancel: () => void;
 }
 
-const JournalForm = ({ onSave, initialData, onClose }: JournalFormProps) => {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [mood, setMood] = useState('😐');
-  const [tags, setTags] = useState('');
+const JournalForm: React.FC<JournalFormProps> = ({ entry, onSave, onCancel }) => {
+  const [title, setTitle] = useState(entry?.title || '');
+  const [content, setContent] = useState(entry?.content || '');
+  const [mood, setMood] = useState(entry?.mood || '');
+  const [tags, setTags] = useState<string[]>(entry?.tags || []);
+  const [newTag, setNewTag] = useState('');
 
-  useEffect(() => {
-    if (initialData) {
-      setTitle(initialData.title);
-      setContent(initialData.content);
-      setMood(initialData.mood);
-      setTags(initialData.tags.join(', '));
-    } else {
-      setTitle('');
-      setContent('');
-      setMood('😐');
-      setTags('');
+  const handleAddTag = () => {
+    if (newTag.trim() && !tags.includes(newTag.trim())) {
+      setTags([...tags, newTag.trim()]);
+      setNewTag('');
     }
-  }, [initialData]);
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !content) {
-      return;
-    }
     onSave({
       title,
       content,
       mood,
-      tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+      tags,
+      date: new Date().toISOString().split('T')[0] // Add the missing date field
     });
-    onClose();
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 py-4">
-      <div>
-        <Label htmlFor="title">Title</Label>
-        <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
-      </div>
-      <div>
-        <Label htmlFor="content">Content</Label>
-        <Textarea id="content" value={content} onChange={(e) => setContent(e.target.value)} required rows={5} placeholder="What's on your mind, hunter?" />
-      </div>
-      <div>
-        <Label>Mood</Label>
-        <div className="flex gap-2 mt-2">
-          {MOODS.map(m => (
-            <Button
-              key={m}
-              type="button"
-              variant={mood === m ? "default" : "outline"}
-              size="icon"
-              onClick={() => setMood(m)}
-              className="text-xl"
-            >
-              {m}
+    <Card className="w-full">
+      <CardContent className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="title">Title</Label>
+            <Input
+              type="text"
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter title"
+            />
+          </div>
+          <div>
+            <Label htmlFor="content">Content</Label>
+            <Textarea
+              id="content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Write your thoughts here..."
+              className="min-h-[100px]"
+            />
+          </div>
+          <div>
+            <Label htmlFor="mood">Mood</Label>
+            <Input
+              type="text"
+              id="mood"
+              value={mood}
+              onChange={(e) => setMood(e.target.value)}
+              placeholder="Enter your mood"
+            />
+          </div>
+          <div>
+            <Label>Tags</Label>
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <Button key={tag} variant="secondary" size="sm" onClick={() => handleRemoveTag(tag)}>
+                  {tag}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center space-x-2">
+              <Input
+                type="text"
+                placeholder="Add new tag"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+              />
+              <Button type="button" size="sm" onClick={handleAddTag}>
+                Add Tag
+              </Button>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
             </Button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <Label htmlFor="tags">Tags (comma-separated)</Label>
-        <Input id="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. #win, #study" />
-      </div>
-      <DialogFooter>
-        <Button type="submit">
-          <Save className="mr-2 h-4 w-4" />
-          Save Entry
-        </Button>
-      </DialogFooter>
-    </form>
-  )
-}
+            <Button type="submit">Save</Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+};
 
 export default JournalForm;
