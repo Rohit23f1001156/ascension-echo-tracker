@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -53,7 +54,6 @@ import AnalyticsChart from "@/components/AnalyticsChart";
 import LevelUpDialog from "@/components/LevelUpDialog";
 import FloatingCoins from "@/components/FloatingCoins";
 import { useNavigate } from "react-router-dom";
-import ShadowCompanion from "@/components/ShadowCompanion";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests", description: "Complete your daily challenges and build consistent habits" },
@@ -276,9 +276,6 @@ const Index = () => {
         
         {/* Floating Coins */}
         <FloatingCoins />
-        
-        {/* Shadow Companion */}
-        <ShadowCompanion />
       </SharedLayout>
     </TooltipProvider>
   );
