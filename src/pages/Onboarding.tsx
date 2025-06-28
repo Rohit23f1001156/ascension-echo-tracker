@@ -55,10 +55,11 @@ const Onboarding = () => {
   }, [session, navigate]);
 
   const handleStatChange = (stat: string, value: number) => {
+    const currentStatValue = formData[stat as keyof typeof formData] as number;
     const totalPoints = Object.values(formData).slice(2).reduce((sum: number, val: number) => sum + val, 0);
     const availablePoints = 20;
     
-    if (totalPoints - (formData[stat as keyof typeof formData] as number) + value <= availablePoints && value >= 1 && value <= 10) {
+    if (totalPoints - currentStatValue + value <= availablePoints && value >= 1 && value <= 10) {
       setFormData(prev => ({ ...prev, [stat]: value }));
     }
   };

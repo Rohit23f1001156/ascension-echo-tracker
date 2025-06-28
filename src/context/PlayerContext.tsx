@@ -636,15 +636,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
-  // Toggle habit
+  // Toggle habit with difficulty-based rewards
   const toggleHabit = useCallback((habitId: string) => {
     const habit = habits.find(h => h.id === habitId);
     if (!habit) return;
 
     const isCompleting = !habit.isCompleted;
-    const xpChange = habit.type === 'good' ? habit.xp : -habit.xp;
+    
+    // Difficulty-based rewards
+    const rewardMap = {
+      Easy: { xp: 10, coins: 1 },
+      Medium: { xp: 20, coins: 2 },
+      Hard: { xp: 30, coins: 3 },
+    };
+    const reward = rewardMap[habit.difficulty || 'Easy'];
+    const xpChange = habit.type === 'good' ? reward.xp : -reward.xp;
+    const coinsChange = habit.type === 'good' ? reward.coins : -reward.coins;
+    
     const newXp = Math.max(0, stats.xp + (isCompleting ? xpChange : -xpChange));
-    const coinsChange = Math.floor(habit.xp / 10);
 
     setHabits(prev => prev.map(h => 
       h.id === habitId ? { 
@@ -663,9 +672,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }));
 
     if (isCompleting) {
-      toast.success(`${habit.type === 'good' ? 'Habit completed' : 'Temptation resisted'}! +${habit.xp} XP, +${coinsChange} coins`);
+      toast.success(`${habit.type === 'good' ? 'Habit completed' : 'Temptation resisted'}! +${reward.xp} XP, +${reward.coins} coins`);
     } else {
-      toast.info(`Habit undone. -${habit.xp} XP, -${coinsChange} coins`);
+      toast.info(`Habit undone. -${reward.xp} XP, -${reward.coins} coins`);
     }
 
     setTimeout(() => saveAllDataToSupabase(), 1000);
@@ -780,7 +789,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
-  // Toggle skill task
+  // Toggle skill task with completion checking
   const toggleSkillTask = useCallback((nodeId: string, task: string) => {
     setActiveSkillQuests(prev => {
       const newMap = new Map(prev);
@@ -793,10 +802,63 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       
       newMap.set(nodeId, tasks);
+      
+      // Check if all tasks are completed
+      const node = skillTree.flatMap(path => path.nodes).find(n => n.id === nodeId);
+      if (node && tasks.size === node.tasks.length) {
+        // Mark node as completed and award XP
+        setMasteredSkills(prevMastered => {
+          const newMastered = new Set(prevMastered);
+          newMastered.add(nodeId);
+          
+          // Award XP and update stats
+          setStats(prevStats => {
+            const newXp = prevStats.xp + node.xp;
+            const newLevel = calculateLevelFromXp(newXp);
+            const wasLevelUp = newLevel > prevStats.level;
+            
+            const updatedStats = {
+              ...prevStats,
+              xp: newXp,
+              level: newLevel,
+              xpNextLevel: calculateXpToNextLevel(newXp, newLevel)
+            };
+
+            if (wasLevelUp) {
+              const pointsGained = newLevel - prevStats.level;
+              updatedStats.availablePoints += pointsGained;
+              updatedStats.statPointsToAllocate += pointsGained;
+              setLevelUpAnimation(true);
+              setLevelUpData({ newLevel, perk: null });
+              
+              setTimeout(() => setLevelUpAnimation(false), 3000);
+              
+              toast.success(`Level Up! You are now level ${newLevel}!`, {
+                description: `You gained ${pointsGained} stat point(s) to allocate!`,
+              });
+            }
+
+            return updatedStats;
+          });
+          
+          // Set the just mastered skill for animation
+          setJustMasteredSkillId(nodeId);
+          setTimeout(() => setJustMasteredSkillId(null), 3000);
+          
+          toast.success(`Skill mastered! +${node.xp} XP`);
+          
+          return newMastered;
+        });
+        
+        // Remove from active quests
+        newMap.delete(nodeId);
+      }
+      
       return newMap;
     });
+    
     setTimeout(() => saveAllDataToSupabase(), 1000);
-  }, [saveAllDataToSupabase]);
+  }, [skillTree, saveAllDataToSupabase]);
 
   // Clear level up data
   const clearLevelUpData = useCallback(() => {
@@ -882,23 +944,23 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [shadowTrials, saveAllDataToSupabase]);
 
-  // Enhanced calendar data generation
-  const getCalendarData = useCallback(() => {
-    const days = [];
+  // Enhanced calendar data generation - fix return type
+  const getCalendarData = useCallback((): CalendarData => {
+    const data: CalendarData = {};
     for (let i = 0; i < 30; i++) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dayKey = date.toISOString().split('T')[0];
       
-      days.push({
+      data[dayKey] = {
         date: dayKey,
         xp: calendarData[dayKey]?.xp || 0,
         total: calendarData[dayKey]?.total || 0,
         quests: calendarData[dayKey]?.quests || [],
         completed: calendarData[dayKey]?.completed || 0
-      });
+      };
     }
-    return days.reverse();
+    return data;
   }, [calendarData]);
 
   const value: PlayerContextType = {
