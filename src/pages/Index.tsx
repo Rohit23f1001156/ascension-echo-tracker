@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/tooltip";
 import WeeklySummary from "@/components/WeeklySummary";
 import ShadowTrials from "@/components/ShadowTrials";
+import ShadowCompanion from "@/components/ShadowCompanion";
 import { supabase } from "@/lib/supabase";
 import AiCompanion from "@/components/AiCompanion";
 import AnalyticsChart from "@/components/AnalyticsChart";
@@ -201,7 +202,7 @@ const Index = () => {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Reset All Progress?</AlertDialogTitle>
-                          <AlertDialogDescription>
+                          <AlertDialugDescription>
                             This will permanently delete ALL your progress including stats, quests, journal entries, skill tree progress, and calendar history. You will need to complete onboarding again. This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
@@ -276,6 +277,9 @@ const Index = () => {
         
         {/* Floating Coins */}
         <FloatingCoins />
+        
+        {/* Shadow Companion */}
+        <ShadowCompanion />
       </SharedLayout>
     </TooltipProvider>
   );

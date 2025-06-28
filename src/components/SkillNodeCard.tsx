@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Lock, Unlock, CheckCircle, XCircle, Edit, Trash2 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
-import { SkillNode } from "@/data/skillTreeData";
+import { SkillNode } from "@/context/PlayerContext";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -46,7 +46,6 @@ const SkillNodeCard = ({ node, pathNodes, pathId }: SkillNodeCardProps) => {
   const isLocked = !isMastered && (firstUnmasteredNode ? node.id !== firstUnmasteredNode.id : false);
 
   const isActive = activeSkillQuests.has(node.id);
-
   const completedTasks = activeSkillQuests.get(node.id) || new Set();
   const progress = isActive ? (completedTasks.size / node.tasks.length) * 100 : 0;
 

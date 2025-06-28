@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -103,38 +104,18 @@ const Onboarding = () => {
         return;
       }
 
-      // First check if profile already exists in 'data' table - using .single() for JSON response
+      // First check if profile already exists and onboarding is complete
       const { data: existingProfile } = await supabase
         .from('data')
-        .select('id')
+        .select('onboarding_complete')
         .eq('id', user.id)
         .single();
 
-      if (existingProfile) {
-        toast.error("Profile already exists. Redirecting to dashboard.");
+      if (existingProfile?.onboarding_complete) {
+        toast.success("Welcome back! Redirecting to dashboard.");
         navigate('/');
         return;
       }
-
-      // Create stats object for local storage
-      const statsToSave = {
-        name,
-        avatar,
-        ...formStats,
-        level: 1,
-        xp: 0,
-        xpNextLevel: 1000,
-        class: "Novice",
-        title: "Newcomer",
-        skills: 0,
-        coins: 20,
-        statPointsToAllocate: 0,
-        streak: 0,
-        lastActivityDate: null,
-        buffs: [],
-        journalStreak: 0,
-        lastJournalEntryDate: null,
-      };
 
       // Convert time budget from hours to minutes for better precision
       const timeBudgetInMinutes: Record<string, number> = {};
@@ -142,37 +123,47 @@ const Onboarding = () => {
         timeBudgetInMinutes[area] = (hours as number) * 60;
       });
 
-      // Create settings object for local storage
-      const settingsToSave = { 
-        username: name,
-        class: avatar,
-        areas: lifeAreas,
-        time_commitment: timeBudgetInMinutes,
-        difficultyPreference 
-      };
-
-      console.log('Creating profile in Supabase for user:', user.id);
+      console.log('Creating/updating profile in Supabase for user:', user.id);
       
-      // CRITICAL: Only insert fields that exist in the data table schema
+      // CRITICAL: Only insert/update fields that exist in the data table schema
       const profileData = {
         id: user.id,
         updated_at: new Date().toISOString(),
         stats: {
+          name,
+          class: avatar,
+          title: "Novice",
+          level: 0,
+          xp: 0,
+          xpNextLevel: 1000,
           strength: formStats.strength,
           stamina: formStats.stamina,
           intelligence: formStats.intelligence,
           wealth: formStats.wealth,
-          concentration: formStats.concentration
+          concentration: formStats.concentration,
+          skills: 1,
+          streak: 0,
+          availablePoints: 0,
+          statPointsToAllocate: 0,
+          coins: 20,
+          lastActivityDate: null,
+          buffs: [],
+          journalStreak: 0,
+          lastJournalEntryDate: null,
         },
         settings: {
           username: name,
           class: avatar,
-          areas: lifeAreas
+          areas: lifeAreas,
+          time_commitment: timeBudgetInMinutes,
+          difficultyPreference
         },
         onboarding_complete: true
       };
 
-      const { error } = await supabase.from('data').insert([profileData]);
+      const { error } = await supabase
+        .from('data')
+        .upsert([profileData], { onConflict: 'id' });
 
       if (error) {
         console.error("Supabase profile creation error:", error);
@@ -180,10 +171,10 @@ const Onboarding = () => {
         return;
       }
 
-      console.log('Profile created successfully in Supabase');
+      console.log('Profile created/updated successfully in Supabase');
       
       // Update local state after successful Supabase save
-      updatePlayerProfile(statsToSave, settingsToSave);
+      updatePlayerProfile({ name, class: avatar });
       localStorage.setItem("onboardingComplete", "true");
       
       toast.success(`Welcome, ${name}!`, {

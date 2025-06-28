@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
@@ -23,6 +22,10 @@ export interface Stats {
   availablePoints: number;
   statPointsToAllocate: number;
   coins: number;
+  lastActivityDate?: string | null;
+  buffs?: Buff[];
+  journalStreak?: number;
+  lastJournalEntryDate?: string | null;
 }
 
 export interface Quest {
@@ -31,6 +34,7 @@ export interface Quest {
   xp: number;
   type: 'good' | 'bad';
   isRecurring?: boolean;
+  recurrence?: 'none' | 'daily' | 'weekly' | 'custom';
   streak?: number;
   difficulty?: 'Easy' | 'Medium' | 'Hard';
   startDate?: string;
@@ -44,6 +48,8 @@ export interface Habit {
   type: 'good' | 'bad';
   streak: number;
   isCompleted: boolean;
+  difficulty?: 'Easy' | 'Medium' | 'Hard';
+  lastCompleted?: string;
 }
 
 export interface QuestLogEntry {
@@ -126,7 +132,7 @@ interface PlayerContextType {
   shadowTrials: ShadowTrial[];
   habits: Habit[];
   masteredSkills: Set<string>;
-  activeSkillQuests: Set<string>;
+  activeSkillQuests: Map<string, Set<string>>;
   justMasteredSkillId: string | null;
   toggleQuest: (questId: string) => void;
   addQuest: (quest: Omit<Quest, 'id'>) => void;
@@ -134,16 +140,17 @@ interface PlayerContextType {
   deleteQuest: (questId: string) => void;
   addHabit: (habit: Omit<Habit, 'id'>) => void;
   toggleHabit: (habitId: string) => void;
+  updateHabit: (habitId: string, updates: Partial<Habit>) => void;
   deleteHabit: (habitId: string) => void;
-  addJournalEntry: (entry: Omit<JournalEntry, 'id' | 'createdAt'>, id?: string) => void;
+  addJournalEntry: (entry: Omit<JournalEntry, 'id' | 'createdAt'>) => void;
+  updateJournalEntry: (id: string, entry: Omit<JournalEntry, 'id' | 'createdAt'>) => void;
   deleteJournalEntry: (id: string) => void;
   addSkillNode: (nodeData: { pathId: string; name: string; tasks: string[]; xp: number }) => void;
   updateSkillNode: (pathId: string, nodeId: string, updates: Partial<SkillNode>) => void;
-  completeSkillNode: (pathId: string, nodeId: string) => void;
   deleteSkillNode: (pathId: string, nodeId: string) => void;
-  startSkillQuest: (pathId: string, nodeId: string) => void;
-  cancelSkillQuest: (pathId: string, nodeId: string) => void;
-  toggleSkillTask: (pathId: string, nodeId: string, taskIndex: number) => void;
+  startSkillQuest: (nodeId: string) => void;
+  cancelSkillQuest: (nodeId: string) => void;
+  toggleSkillTask: (nodeId: string, task: string) => void;
   levelUpAnimation: boolean;
   levelUpData: { newLevel: number; perk: Buff | null } | null;
   clearLevelUpData: () => void;
@@ -157,14 +164,13 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 // Utility functions
 const calculateXpForLevel = (level: number): number => {
-  if (level === 0) return 0;
-  if (level === 1) return 800;
-  return 800 + (level - 1) * 800;
+  if (level === 0) return 1000;
+  return 1000 + (level * 800);
 };
 
 const calculateLevelFromXp = (xp: number): number => {
-  if (xp < 800) return 0;
-  return Math.floor((xp - 800) / 800) + 1;
+  if (xp < 1000) return 0;
+  return Math.floor((xp - 1000) / 800) + 1;
 };
 
 const calculateXpToNextLevel = (currentXp: number, currentLevel: number): number => {
@@ -178,7 +184,7 @@ const defaultStats: Stats = {
   title: 'Novice',
   level: 0,
   xp: 0,
-  xpNextLevel: 800,
+  xpNextLevel: 1000,
   strength: 1,
   stamina: 1,
   concentration: 1,
@@ -189,7 +195,22 @@ const defaultStats: Stats = {
   availablePoints: 0,
   statPointsToAllocate: 0,
   coins: 0,
+  lastActivityDate: null,
+  buffs: [],
+  journalStreak: 0,
+  lastJournalEntryDate: null,
 };
+
+const defaultQuests: Quest[] = [
+  { id: 'q1', title: 'Morning Exercise (30 min)', xp: 50, type: 'good', isRecurring: true, recurrence: 'daily', streak: 0, difficulty: 'Medium' },
+  { id: 'q2', title: 'Read for 30 minutes', xp: 40, type: 'good', isRecurring: true, recurrence: 'daily', streak: 0, difficulty: 'Easy' },
+  { id: 'q3', title: 'Drink 8 glasses of water', xp: 30, type: 'good', isRecurring: true, recurrence: 'daily', streak: 0, difficulty: 'Easy' },
+  { id: 'q4', title: 'Write in journal', xp: 35, type: 'good', isRecurring: true, recurrence: 'daily', streak: 0, difficulty: 'Easy' },
+  { id: 'q5', title: 'Learn something new (1 hour)', xp: 60, type: 'good', isRecurring: true, recurrence: 'daily', streak: 0, difficulty: 'Medium' },
+  { id: 'b1', title: 'Procrastinated for >2 hours', xp: 20, type: 'bad', isRecurring: false, difficulty: 'Medium' },
+  { id: 'b2', title: 'Ate junk food', xp: 15, type: 'bad', isRecurring: false, difficulty: 'Easy' },
+  { id: 'b3', title: 'Skipped planned workout', xp: 25, type: 'bad', isRecurring: false, difficulty: 'Medium' },
+];
 
 const defaultShadowTrials: ShadowTrial[] = [
   {
@@ -223,18 +244,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Core state
   const [stats, setStats] = useState<Stats>(defaultStats);
-  const [quests, setQuests] = useState<Quest[]>([]);
+  const [quests, setQuests] = useState<Quest[]>(defaultQuests);
   const [completedQuests, setCompletedQuests] = useState<Set<string>>(new Set());
   const [questLog, setQuestLog] = useState<QuestLogEntry[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-  const [skillTree, setSkillTree] = useState<SkillPath[]>(skillTreeData);
+  const [skillTree, setSkillTree] = useState<SkillPath[]>([]);
   const [calendarData, setCalendarData] = useState<CalendarData>({});
   const [shadowTrials, setShadowTrials] = useState<ShadowTrial[]>(defaultShadowTrials);
   const [habits, setHabits] = useState<Habit[]>([]);
   
   // Skill tracking state
   const [masteredSkills, setMasteredSkills] = useState<Set<string>>(new Set());
-  const [activeSkillQuests, setActiveSkillQuests] = useState<Set<string>>(new Set());
+  const [activeSkillQuests, setActiveSkillQuests] = useState<Map<string, Set<string>>>(new Map());
   const [justMasteredSkillId, setJustMasteredSkillId] = useState<string | null>(null);
   
   // UI state
@@ -244,6 +265,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Auto-save timer
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
+
+  // Initialize skill tree from data
+  useEffect(() => {
+    const initializedSkillTree = skillTreeData.map(path => ({
+      ...path,
+      nodes: path.nodes.map(node => ({
+        ...node,
+        dependencies: node.dependencies || [],
+        isUnlocked: node.dependencies?.length === 0 || false,
+        isCompleted: false,
+        isMastered: false
+      }))
+    }));
+    setSkillTree(initializedSkillTree);
+  }, []);
 
   // Save all data to Supabase
   const saveAllDataToSupabase = useCallback(async () => {
@@ -261,7 +297,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         shadowTrials,
         habits,
         masteredSkills: Array.from(masteredSkills),
-        activeSkillQuests: Array.from(activeSkillQuests),
+        activeSkillQuests: Array.from(activeSkillQuests.entries()).map(([key, value]) => [key, Array.from(value)]),
         updated_at: new Date().toISOString()
       };
 
@@ -323,7 +359,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (profile.settings) {
           const settings = profile.settings;
           
-          if (settings.quests) setQuests(settings.quests);
+          if (settings.quests) setQuests([...defaultQuests, ...settings.quests.filter((q: Quest) => !defaultQuests.find(dq => dq.id === q.id))]);
           if (settings.completedQuests) setCompletedQuests(new Set(settings.completedQuests));
           if (settings.questLog) setQuestLog(settings.questLog);
           if (settings.journalEntries) setJournalEntries(settings.journalEntries);
@@ -332,7 +368,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (settings.shadowTrials) setShadowTrials(settings.shadowTrials);
           if (settings.habits) setHabits(settings.habits);
           if (settings.masteredSkills) setMasteredSkills(new Set(settings.masteredSkills));
-          if (settings.activeSkillQuests) setActiveSkillQuests(new Set(settings.activeSkillQuests));
+          if (settings.activeSkillQuests) {
+            const newActiveSkillQuests = new Map();
+            settings.activeSkillQuests.forEach(([key, value]: [string, string[]]) => {
+              newActiveSkillQuests.set(key, new Set(value));
+            });
+            setActiveSkillQuests(newActiveSkillQuests);
+          }
         }
 
         console.log('Successfully loaded all data from Supabase');
@@ -355,7 +397,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .update({
           stats: defaultStats,
           settings: {
-            quests: [],
+            quests: defaultQuests,
             completedQuests: [],
             questLog: [],
             journalEntries: [],
@@ -379,16 +421,25 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Reset local state
       setStats(defaultStats);
-      setQuests([]);
+      setQuests(defaultQuests);
       setCompletedQuests(new Set());
       setQuestLog([]);
       setJournalEntries([]);
-      setSkillTree(skillTreeData);
+      setSkillTree(skillTreeData.map(path => ({
+        ...path,
+        nodes: path.nodes.map(node => ({
+          ...node,
+          dependencies: node.dependencies || [],
+          isUnlocked: node.dependencies?.length === 0 || false,
+          isCompleted: false,
+          isMastered: false
+        }))
+      })));
       setCalendarData({});
       setShadowTrials(defaultShadowTrials);
       setHabits([]);
       setMasteredSkills(new Set());
-      setActiveSkillQuests(new Set());
+      setActiveSkillQuests(new Map());
 
       toast.success('All progress has been reset');
       console.log('Successfully reset all data');
@@ -574,7 +625,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addHabit = useCallback((habitData: Omit<Habit, 'id'>) => {
     const newHabit: Habit = {
       ...habitData,
-      id: `habit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      id: `habit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      streak: 0
     };
     
     setHabits(prev => [...prev, newHabit]);
@@ -584,8 +636,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Toggle habit
   const toggleHabit = useCallback((habitId: string) => {
     setHabits(prev => prev.map(h => 
-      h.id === habitId ? { ...h, isCompleted: !h.isCompleted } : h
+      h.id === habitId ? { 
+        ...h, 
+        isCompleted: !h.isCompleted,
+        lastCompleted: !h.isCompleted ? new Date().toISOString() : h.lastCompleted
+      } : h
     ));
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Update habit
+  const updateHabit = useCallback((habitId: string, updates: Partial<Habit>) => {
+    setHabits(prev => prev.map(h => h.id === habitId ? { ...h, ...updates } : h));
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
@@ -596,21 +658,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [saveAllDataToSupabase]);
 
   // Add journal entry
-  const addJournalEntry = useCallback((entryData: Omit<JournalEntry, 'id' | 'createdAt'>, id?: string) => {
-    if (id) {
-      // Update existing entry
-      setJournalEntries(prev => prev.map(entry => 
-        entry.id === id ? { ...entry, ...entryData } : entry
-      ));
-    } else {
-      // Add new entry
-      const newEntry: JournalEntry = {
-        ...entryData,
-        id: `journal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        createdAt: new Date().toISOString()
-      };
-      setJournalEntries(prev => [...prev, newEntry]);
-    }
+  const addJournalEntry = useCallback((entryData: Omit<JournalEntry, 'id' | 'createdAt'>) => {
+    const newEntry: JournalEntry = {
+      ...entryData,
+      id: `journal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date().toISOString()
+    };
+    setJournalEntries(prev => [...prev, newEntry]);
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [saveAllDataToSupabase]);
+
+  // Update journal entry
+  const updateJournalEntry = useCallback((id: string, entryData: Omit<JournalEntry, 'id' | 'createdAt'>) => {
+    setJournalEntries(prev => prev.map(entry => 
+      entry.id === id ? { ...entry, ...entryData } : entry
+    ));
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
@@ -660,28 +722,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
-  // Complete skill node
-  const completeSkillNode = useCallback((pathId: string, nodeId: string) => {
-    setSkillTree(prev => prev.map(path => 
-      path.id === pathId 
-        ? {
-            ...path,
-            nodes: path.nodes.map(node => 
-              node.id === nodeId 
-                ? { ...node, isCompleted: true, isMastered: true }
-                : node
-            )
-          }
-        : path
-    ));
-    
-    setMasteredSkills(prev => new Set([...prev, nodeId]));
-    setJustMasteredSkillId(nodeId);
-    setTimeout(() => setJustMasteredSkillId(null), 3000);
-    
-    setTimeout(() => saveAllDataToSupabase(), 1000);
-  }, [saveAllDataToSupabase]);
-
   // Delete skill node
   const deleteSkillNode = useCallback((pathId: string, nodeId: string) => {
     setSkillTree(prev => prev.map(path => 
@@ -693,25 +733,42 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [saveAllDataToSupabase]);
 
   // Start skill quest
-  const startSkillQuest = useCallback((pathId: string, nodeId: string) => {
-    setActiveSkillQuests(prev => new Set([...prev, nodeId]));
+  const startSkillQuest = useCallback((nodeId: string) => {
+    setActiveSkillQuests(prev => {
+      const newMap = new Map(prev);
+      if (!newMap.has(nodeId)) {
+        newMap.set(nodeId, new Set());
+      }
+      return newMap;
+    });
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
   // Cancel skill quest
-  const cancelSkillQuest = useCallback((pathId: string, nodeId: string) => {
+  const cancelSkillQuest = useCallback((nodeId: string) => {
     setActiveSkillQuests(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(nodeId);
-      return newSet;
+      const newMap = new Map(prev);
+      newMap.delete(nodeId);
+      return newMap;
     });
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
   // Toggle skill task
-  const toggleSkillTask = useCallback((pathId: string, nodeId: string, taskIndex: number) => {
-    // This would typically track individual task completion within a skill node
-    // For now, we'll just trigger a save
+  const toggleSkillTask = useCallback((nodeId: string, task: string) => {
+    setActiveSkillQuests(prev => {
+      const newMap = new Map(prev);
+      const tasks = newMap.get(nodeId) || new Set();
+      
+      if (tasks.has(task)) {
+        tasks.delete(task);
+      } else {
+        tasks.add(task);
+      }
+      
+      newMap.set(nodeId, tasks);
+      return newMap;
+    });
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
@@ -742,12 +799,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     deleteQuest,
     addHabit,
     toggleHabit,
+    updateHabit,
     deleteHabit,
     addJournalEntry,
+    updateJournalEntry,
     deleteJournalEntry,
     addSkillNode,
     updateSkillNode,
-    completeSkillNode,
     deleteSkillNode,
     startSkillQuest,
     cancelSkillQuest,
