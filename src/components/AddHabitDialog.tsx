@@ -1,142 +1,102 @@
 
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { usePlayer, Habit } from '@/context/PlayerContext';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { PlusCircle } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { usePlayer } from '@/context/PlayerContext';
+import { Plus } from 'lucide-react';
 
-const habitFormSchema = z.object({
-  title: z.string().min(3, 'Title must be at least 3 characters.'),
-  type: z.enum(['good', 'bad']),
-  difficulty: z.enum(['Easy', 'Medium', 'Hard']),
-});
-
-type HabitFormValues = Omit<Habit, 'id' | 'streak' | 'lastCompleted'>;
+interface HabitFormValues {
+  title: string;
+  xp: number;
+  type: 'good' | 'bad';
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+}
 
 const AddHabitDialog = () => {
   const { addHabit } = usePlayer();
-  const [isOpen, setIsOpen] = React.useState(false);
-
-  const form = useForm<HabitFormValues>({
-    resolver: zodResolver(habitFormSchema),
-    defaultValues: {
-      title: '',
-      type: 'good',
-      difficulty: 'Easy',
-    },
+  const [open, setOpen] = useState(false);
+  const [formData, setFormData] = useState<HabitFormValues>({
+    title: '',
+    xp: 25,
+    type: 'good',
+    difficulty: 'Easy'
   });
 
-  const onSubmit = (data: HabitFormValues) => {
-    addHabit(data);
-    form.reset();
-    setIsOpen(false);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.title.trim()) return;
+
+    addHabit({
+      ...formData,
+      streak: 0,
+      isCompleted: false
+    });
+
+    setFormData({
+      title: '',
+      xp: 25,
+      type: 'good',
+      difficulty: 'Easy'
+    });
+    setOpen(false);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <PlusCircle className="mr-2 h-4 w-4" />
+          <Plus className="h-4 w-4 mr-2" />
           Add Habit
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New Habit</DialogTitle>
-          <DialogDescription>
-            Define a new habit to conquer. Good habits reward you, failing bad habits has consequences.
-          </DialogDescription>
+          <DialogDescription>Create a new habit to track in your Shadow Trials.</DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Habit Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Drink 2L of water" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="title">Title</Label>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Enter habit title"
+              required
             />
-            <FormField
-              control={form.control}
-              name="type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Habit Type</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="good">Good Habit</SelectItem>
-                      <SelectItem value="bad">Bad Habit</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="difficulty"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Difficulty</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a difficulty" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Easy">Easy</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button type="submit">Add Habit</Button>
-            </DialogFooter>
-          </form>
-        </Form>
+          </div>
+          <div>
+            <Label htmlFor="type">Type</Label>
+            <Select value={formData.type} onValueChange={(value: 'good' | 'bad') => setFormData(prev => ({ ...prev, type: value }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="good">Good Habit</SelectItem>
+                <SelectItem value="bad">Bad Habit</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="difficulty">Difficulty</Label>
+            <Select value={formData.difficulty} onValueChange={(value: 'Easy' | 'Medium' | 'Hard') => setFormData(prev => ({ ...prev, difficulty: value }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Easy">Easy (25 XP)</SelectItem>
+                <SelectItem value="Medium">Medium (50 XP)</SelectItem>
+                <SelectItem value="Hard">Hard (100 XP)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button type="submit">Add Habit</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

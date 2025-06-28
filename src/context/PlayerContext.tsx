@@ -158,24 +158,39 @@ interface PlayerContextType {
   saveAllDataToSupabase: () => Promise<void>;
   loadAllDataFromSupabase: () => Promise<void>;
   resetAllData: () => Promise<void>;
+  completeShadowTrial: (trialId: string) => void;
+  undoShadowTrial: (trialId: string) => void;
+  getCalendarData: () => CalendarData;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 // Utility functions
-const calculateXpForLevel = (level: number): number => {
-  if (level === 0) return 1000;
+const getXpRequired = (level: number): number => {
   return 1000 + (level * 800);
 };
 
 const calculateLevelFromXp = (xp: number): number => {
-  if (xp < 1000) return 0;
-  return Math.floor((xp - 1000) / 800) + 1;
+  let level = 0;
+  let totalXpNeeded = 0;
+  
+  while (totalXpNeeded <= xp) {
+    totalXpNeeded += getXpRequired(level);
+    if (totalXpNeeded <= xp) level++;
+  }
+  
+  return level;
 };
 
 const calculateXpToNextLevel = (currentXp: number, currentLevel: number): number => {
-  const nextLevelXp = calculateXpForLevel(currentLevel + 1);
-  return Math.max(0, nextLevelXp - currentXp);
+  const nextLevelXp = getXpRequired(currentLevel);
+  let levelStartXp = 0;
+  
+  for (let i = 0; i < currentLevel; i++) {
+    levelStartXp += getXpRequired(i);
+  }
+  
+  return Math.max(0, (levelStartXp + nextLevelXp) - currentXp);
 };
 
 const defaultStats: Stats = {
@@ -223,7 +238,7 @@ const defaultShadowTrials: ShadowTrial[] = [
   },
   {
     id: 'trial-2',
-    title: 'Consistency',
+    title: 'Consistency Master',
     description: 'Maintain a 3-day streak',
     xpReward: 200,
     isCompleted: false,
@@ -391,33 +406,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!session?.user?.id) return;
 
     try {
-      // Reset Supabase data
+      // Delete user's profile row from Supabase
       const { error } = await supabase
         .from('data')
-        .update({
-          stats: defaultStats,
-          settings: {
-            quests: defaultQuests,
-            completedQuests: [],
-            questLog: [],
-            journalEntries: [],
-            skillTree: skillTreeData,
-            calendarData: {},
-            shadowTrials: defaultShadowTrials,
-            habits: [],
-            masteredSkills: [],
-            activeSkillQuests: []
-          },
-          onboarding_complete: false,
-          updated_at: new Date().toISOString()
-        })
+        .delete()
         .eq('id', session.user.id);
 
-      if (error) {
-        console.error('Error resetting data in Supabase:', error);
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error('Error deleting data in Supabase:', error);
         toast.error('Failed to reset progress in cloud');
         return;
       }
+
+      // Clear local storage and session storage
+      localStorage.clear();
+      sessionStorage.clear();
 
       // Reset local state
       setStats(defaultStats);
@@ -503,12 +506,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
-  // Update stats with level calculation
+  // Update stats with corrected level calculation
   const updateStats = useCallback((newStats: Partial<Stats>) => {
     setStats(prevStats => {
       const updatedStats = { ...prevStats, ...newStats };
       
-      // Recalculate level and XP to next level
+      // Recalculate level and XP to next level using correct formula
       if ('xp' in newStats) {
         const newLevel = calculateLevelFromXp(updatedStats.xp);
         const wasLevelUp = newLevel > prevStats.level;
@@ -777,6 +780,104 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLevelUpData(null);
   }, []);
 
+  // Complete Shadow Trial
+  const completeShadowTrial = useCallback((trialId: string) => {
+    const trial = shadowTrials.find(t => t.id === trialId);
+    if (!trial || trial.isCompleted) return;
+
+    // Update trial status
+    setShadowTrials(prev => prev.map(t => 
+      t.id === trialId ? { ...t, isCompleted: true } : t
+    ));
+
+    // Award XP and coins
+    const coinsEarned = Math.floor(trial.xpReward / 10);
+    
+    setStats(prevStats => {
+      const newXp = prevStats.xp + trial.xpReward;
+      const newLevel = calculateLevelFromXp(newXp);
+      const wasLevelUp = newLevel > prevStats.level;
+      
+      const updatedStats = {
+        ...prevStats,
+        xp: newXp,
+        coins: prevStats.coins + coinsEarned,
+        level: newLevel,
+        xpNextLevel: calculateXpToNextLevel(newXp, newLevel),
+        streak: prevStats.streak + 1
+      };
+
+      if (wasLevelUp) {
+        const pointsGained = newLevel - prevStats.level;
+        updatedStats.availablePoints += pointsGained;
+        updatedStats.statPointsToAllocate += pointsGained;
+        setLevelUpAnimation(true);
+        setLevelUpData({ newLevel, perk: null });
+        
+        setTimeout(() => setLevelUpAnimation(false), 3000);
+        
+        toast.success(`Level Up! You are now level ${newLevel}!`, {
+          description: `You gained ${pointsGained} stat point(s) to allocate!`,
+        });
+      }
+
+      return updatedStats;
+    });
+
+    toast.success(`Shadow Trial completed! +${trial.xpReward} XP, +${coinsEarned} coins`);
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [shadowTrials, saveAllDataToSupabase]);
+
+  // Undo Shadow Trial
+  const undoShadowTrial = useCallback((trialId: string) => {
+    const trial = shadowTrials.find(t => t.id === trialId);
+    if (!trial || !trial.isCompleted) return;
+
+    // Update trial status
+    setShadowTrials(prev => prev.map(t => 
+      t.id === trialId ? { ...t, isCompleted: false } : t
+    ));
+
+    // Remove XP and coins
+    const coinsLost = Math.floor(trial.xpReward / 10);
+    
+    setStats(prevStats => {
+      const newXp = Math.max(0, prevStats.xp - trial.xpReward);
+      const newLevel = calculateLevelFromXp(newXp);
+      
+      return {
+        ...prevStats,
+        xp: newXp,
+        coins: Math.max(0, prevStats.coins - coinsLost),
+        level: newLevel,
+        xpNextLevel: calculateXpToNextLevel(newXp, newLevel),
+        streak: Math.max(0, prevStats.streak - 1)
+      };
+    });
+
+    toast.info(`Shadow Trial undone. -${trial.xpReward} XP, -${coinsLost} coins`);
+    setTimeout(() => saveAllDataToSupabase(), 1000);
+  }, [shadowTrials, saveAllDataToSupabase]);
+
+  // Enhanced calendar data generation
+  const getCalendarData = useCallback(() => {
+    const days = [];
+    for (let i = 0; i < 30; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dayKey = date.toISOString().split('T')[0];
+      
+      days.push({
+        date: dayKey,
+        xp: calendarData[dayKey]?.xp || 0,
+        total: calendarData[dayKey]?.total || 0,
+        quests: calendarData[dayKey]?.quests || [],
+        completed: calendarData[dayKey]?.completed || 0
+      });
+    }
+    return days.reverse();
+  }, [calendarData]);
+
   const value: PlayerContextType = {
     stats,
     updateStats,
@@ -816,7 +917,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setConfettiConfig,
     saveAllDataToSupabase,
     loadAllDataFromSupabase,
-    resetAllData
+    resetAllData,
+    completeShadowTrial,
+    undoShadowTrial,
+    getCalendarData
   };
 
   return (

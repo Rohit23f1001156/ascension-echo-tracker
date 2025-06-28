@@ -1,346 +1,249 @@
 
-import React, { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { usePlayer } from '@/context/PlayerContext';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import SharedLayout from '@/components/layout/SharedLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from "@/components/ui/checkbox";
-import { Slider } from "@/components/ui/slider";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { User, Shield, Swords, Brain, Heart, Crosshair, ChevronsUp, DollarSign, Clock } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
+import { usePlayer } from '@/context/PlayerContext';
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/components/ui/sonner';
 
-const onboardingSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  avatar: z.string(),
-  lifeAreas: z.array(z.string()).min(1, "Select at least one area."),
-  timeBudget: z.record(z.string(), z.number()).default({}),
-  strength: z.number().min(1).max(10),
-  stamina: z.number().min(1).max(10),
-  concentration: z.number().min(1).max(10),
-  intelligence: z.number().min(1).max(10),
-  wealth: z.number().min(1).max(10),
-  difficultyPreference: z.enum(['Easy', 'Medium', 'Hard']),
-});
-
-type OnboardingValues = z.infer<typeof onboardingSchema>;
-
-const lifeAreasOptions = [
-    "Fitness & Health",
-    "Learning & Skills",
-    "Career & Finance",
-    "Mindfulness & Mental Health",
-    "Social Life",
-    "Hobbies & Creativity"
+const characterClasses = [
+  { name: 'Shadow Hunter', description: 'Master of stealth and precision' },
+  { name: 'Mind Warrior', description: 'Champion of mental fortitude' },
+  { name: 'Life Architect', description: 'Builder of sustainable habits' },
+  { name: 'Goal Crusher', description: 'Unstoppable force of achievement' }
 ];
-const avatarOptions = [
-    { value: 'user', label: 'Hunter', icon: <User className="w-6 h-6" /> },
-    { value: 'shield', label: 'Tanker', icon: <Shield className="w-6 h-6" /> },
-    { value: 'swords', label: 'Assassin', icon: <Swords className="w-6 h-6" /> },
-];
-
-const statOptions = [
-    { name: "strength", label: "Strength", icon: <ChevronsUp className="w-5 h-5 text-primary" />},
-    { name: "stamina", label: "Stamina", icon: <Heart className="w-5 h-5 text-primary" />},
-    { name: "concentration", label: "Concentration", icon: <Crosshair className="w-5 h-5 text-primary" />},
-    { name: "intelligence", label: "Intelligence", icon: <Brain className="w-5 h-5 text-primary" />},
-    { name: "wealth", label: "Wealth", icon: <DollarSign className="w-5 h-5 text-primary" />},
-] as const;
 
 const Onboarding = () => {
-  const [step, setStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { session } = useAuth();
   const { updatePlayerProfile } = usePlayer();
-  const { user } = useAuth();
   const navigate = useNavigate();
-
-  const { control, handleSubmit, trigger, getValues, watch } = useForm<OnboardingValues>({
-    resolver: zodResolver(onboardingSchema),
-    defaultValues: {
-      name: '',
-      avatar: 'user',
-      lifeAreas: [],
-      timeBudget: {},
-      strength: 5,
-      stamina: 5,
-      concentration: 5,
-      intelligence: 5,
-      wealth: 5,
-      difficultyPreference: 'Medium',
-    },
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({
+    name: '',
+    class: 'Shadow Hunter',
+    strength: 3,
+    stamina: 3,
+    concentration: 3,
+    intelligence: 3,
+    wealth: 3
   });
 
-  const selectedLifeAreas = watch('lifeAreas');
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (!session?.user?.id) return;
 
-  const nextStep = async () => {
-    let fieldsToValidate: (keyof OnboardingValues)[] = [];
-    if (step === 1) fieldsToValidate = ['name', 'avatar'];
-    if (step === 2) fieldsToValidate = ['lifeAreas'];
-    if (step === 4) fieldsToValidate = ['strength', 'stamina', 'concentration', 'intelligence', 'wealth'];
+      try {
+        const { data: profile, error } = await supabase
+          .from('data')
+          .select('onboarding_complete')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!error && profile?.onboarding_complete) {
+          navigate('/');
+        }
+      } catch (err) {
+        console.log('No existing profile found, continuing with onboarding');
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [session, navigate]);
+
+  const handleStatChange = (stat: string, value: number) => {
+    const totalPoints = Object.values(formData).slice(2).reduce((sum: number, val: number) => sum + val, 0);
+    const availablePoints = 20;
     
-    const isValid = await trigger(fieldsToValidate);
-    if (isValid) setStep(s => s + 1);
+    if (totalPoints - formData[stat as keyof typeof formData] + value <= availablePoints && value >= 1 && value <= 10) {
+      setFormData(prev => ({ ...prev, [stat]: value }));
+    }
   };
-  const prevStep = () => setStep(s => s - 1);
 
-  const onSubmit = async (data: OnboardingValues) => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    
+  const handleComplete = async () => {
+    if (!session?.user?.id || !formData.name.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     try {
-      const { name, avatar, difficultyPreference, lifeAreas, timeBudget, ...formStats } = data;
-
-      if (!user) {
-        toast.error("Authentication error. Please log in again.");
-        return;
-      }
-
-      // First check if profile already exists and onboarding is complete
-      const { data: existingProfile } = await supabase
-        .from('data')
-        .select('onboarding_complete')
-        .eq('id', user.id)
-        .single();
-
-      if (existingProfile?.onboarding_complete) {
-        toast.success("Welcome back! Redirecting to dashboard.");
-        navigate('/');
-        return;
-      }
-
-      // Convert time budget from hours to minutes for better precision
-      const timeBudgetInMinutes: Record<string, number> = {};
-      Object.entries(timeBudget || {}).forEach(([area, hours]) => {
-        timeBudgetInMinutes[area] = (hours as number) * 60;
-      });
-
-      console.log('Creating/updating profile in Supabase for user:', user.id);
-      
-      // CRITICAL: Only insert/update fields that exist in the data table schema
       const profileData = {
-        id: user.id,
-        updated_at: new Date().toISOString(),
+        id: session.user.id,
         stats: {
-          name,
-          class: avatar,
-          title: "Novice",
+          name: formData.name,
+          class: formData.class,
           level: 0,
           xp: 0,
           xpNextLevel: 1000,
-          strength: formStats.strength,
-          stamina: formStats.stamina,
-          intelligence: formStats.intelligence,
-          wealth: formStats.wealth,
-          concentration: formStats.concentration,
+          strength: formData.strength,
+          stamina: formData.stamina,
+          concentration: formData.concentration,
+          intelligence: formData.intelligence,
+          wealth: formData.wealth,
           skills: 1,
           streak: 0,
           availablePoints: 0,
           statPointsToAllocate: 0,
-          coins: 20,
+          coins: 0,
           lastActivityDate: null,
           buffs: [],
           journalStreak: 0,
           lastJournalEntryDate: null,
+          title: 'Novice'
         },
         settings: {
-          username: name,
-          class: avatar,
-          areas: lifeAreas,
-          time_commitment: timeBudgetInMinutes,
-          difficultyPreference
+          quests: [],
+          completedQuests: [],
+          questLog: [],
+          journalEntries: [],
+          skillTree: [],
+          calendarData: {},
+          shadowTrials: [],
+          habits: [],
+          masteredSkills: [],
+          activeSkillQuests: []
         },
-        onboarding_complete: true
+        onboarding_complete: true,
+        updated_at: new Date().toISOString()
       };
 
       const { error } = await supabase
         .from('data')
-        .upsert([profileData], { onConflict: 'id' });
+        .upsert(profileData, { onConflict: 'id' });
 
       if (error) {
-        console.error("Supabase profile creation error:", error);
-        toast.error("Failed to save your profile to the cloud. Please try again.");
+        console.error('Error creating profile:', error);
+        toast.error('Failed to complete onboarding');
         return;
       }
 
-      console.log('Profile created/updated successfully in Supabase');
-      
-      // Update local state after successful Supabase save
-      updatePlayerProfile({ name, class: avatar });
-      localStorage.setItem("onboardingComplete", "true");
-      
-      toast.success(`Welcome, ${name}!`, {
-          description: "Your profile has been created! You've been granted 20 coins to start your journey.",
+      // Update player context
+      updatePlayerProfile({
+        name: formData.name,
+        class: formData.class
       });
-      
+
+      toast.success('Welcome to Shadow Ascendant!');
       navigate('/');
     } catch (err) {
-      console.error('Error during onboarding:', err);
-      toast.error('An error occurred during setup. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      console.error('Error in handleComplete:', err);
+      toast.error('Failed to complete onboarding');
     }
   };
 
+  const totalPoints = Object.values(formData).slice(2).reduce((sum: number, val: number) => sum + val, 0);
+  const remainingPoints = 20 - totalPoints;
+
   return (
-    <SharedLayout>
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <Card className="w-full max-w-2xl bg-card/80 border-primary/20">
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <CardHeader>
-              <CardTitle className="text-3xl text-primary font-serif">Arise, Shadow!</CardTitle>
-              <CardDescription>Let's set up your profile to begin the journey.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {step === 1 && (
-                <div className="space-y-4 animate-fade-in">
-                  <h3 className="font-bold text-xl font-serif">Step 1: Your Identity</h3>
-                  <div>
-                    <Label htmlFor="name" className="font-serif">What is your name, hunter?</Label>
-                    <Controller name="name" control={control} render={({ field, fieldState }) => (
-                      <>
-                        <Input id="name" {...field} placeholder="e.g., Sung Jin-Woo" />
-                        {fieldState.error && <p className="text-destructive text-sm mt-1">{fieldState.error.message}</p>}
-                      </>
-                    )} />
-                  </div>
-                  <div>
-                    <Label className="font-serif">Choose your Avatar</Label>
-                     <Controller name="avatar" control={control} render={({ field }) => (
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <SelectTrigger><SelectValue placeholder="Select Avatar" /></SelectTrigger>
-                        <SelectContent>
-                          {avatarOptions.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              <div className="flex items-center gap-2">{opt.icon} {opt.label}</div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                     )} />
-                  </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 flex items-center justify-center p-4">
+      <Card className="w-full max-w-2xl">
+        <CardHeader className="text-center">
+          <CardTitle className="text-4xl font-bold font-serif text-primary">Shadow Ascendant</CardTitle>
+          <CardDescription>Begin your journey to greatness</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {step === 1 && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">What shall we call you, hunter?</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter your name"
+                  className="mt-2"
+                />
+              </div>
+              
+              <div>
+                <Label>Choose your path:</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                  {characterClasses.map((cls) => (
+                    <div
+                      key={cls.name}
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        formData.class === cls.name
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => setFormData(prev => ({ ...prev, class: cls.name }))}
+                    >
+                      <h3 className="font-semibold">{cls.name}</h3>
+                      <p className="text-sm text-muted-foreground">{cls.description}</p>
+                    </div>
+                  ))}
                 </div>
-              )}
-
-              {step === 2 && (
-                <div className="space-y-4 animate-fade-in">
-                  <h3 className="font-bold text-xl font-serif">Step 2: Areas to Conquer</h3>
-                  <div>
-                    <Label className="font-serif">Which life areas do you want to level up?</Label>
-                    <Controller name="lifeAreas" control={control} render={({ field, fieldState }) => (
-                        <div className="space-y-2 mt-2">
-                        {lifeAreasOptions.map(area => (
-                            <div key={area} className="flex items-center gap-2">
-                            <Checkbox
-                                id={area}
-                                checked={field.value.includes(area)}
-                                onCheckedChange={(checked) => {
-                                return checked
-                                    ? field.onChange([...field.value, area])
-                                    : field.onChange(field.value.filter(a => a !== area));
-                                }}
-                            />
-                            <Label htmlFor={area}>{area}</Label>
-                            </div>
-                        ))}
-                        {fieldState.error && <p className="text-destructive text-sm mt-1">{fieldState.error.message}</p>}
-                        </div>
-                    )} />
+              </div>
+              
+              <Button onClick={() => setStep(2)} className="w-full" disabled={!formData.name.trim()}>
+                Continue to Abilities
+              </Button>
+            </div>
+          )}
+          
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold">Distribute Your Abilities</h3>
+                <p className="text-sm text-muted-foreground">
+                  You have {remainingPoints} points remaining to allocate
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                {[
+                  { key: 'strength', label: 'Strength', description: 'Physical power and endurance' },
+                  { key: 'stamina', label: 'Stamina', description: 'Energy and persistence' },
+                  { key: 'concentration', label: 'Concentration', description: 'Focus and attention' },
+                  { key: 'intelligence', label: 'Intelligence', description: 'Learning and problem-solving' },
+                  { key: 'wealth', label: 'Wealth', description: 'Financial management' }
+                ].map((stat) => (
+                  <div key={stat.key} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <h4 className="font-medium">{stat.label}</h4>
+                      <p className="text-xs text-muted-foreground">{stat.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleStatChange(stat.key, formData[stat.key as keyof typeof formData] as number - 1)}
+                        disabled={formData[stat.key as keyof typeof formData] <= 1}
+                      >
+                        -
+                      </Button>
+                      <span className="w-8 text-center font-semibold">
+                        {formData[stat.key as keyof typeof formData]}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleStatChange(stat.key, formData[stat.key as keyof typeof formData] as number + 1)}
+                        disabled={remainingPoints <= 0 || formData[stat.key as keyof typeof formData] >= 10}
+                      >
+                        +
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {step === 3 && (
-                 <div className="space-y-6 animate-fade-in">
-                    <h3 className="font-bold text-xl font-serif">Step 3: Allocate Your Time</h3>
-                    <p className="text-muted-foreground font-serif">How many hours per day can you dedicate to each area?</p>
-                    {selectedLifeAreas.map(area => (
-                        <div key={area} className="space-y-2">
-                            <Label htmlFor={`time-${area}`} className="flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> {area}</Label>
-                            <Controller
-                                name={`timeBudget.${area}` as any}
-                                control={control}
-                                defaultValue={1}
-                                render={({ field }) => (
-                                    <div className="flex items-center gap-4">
-                                        <Slider
-                                            id={`time-${area}`}
-                                            min={0} max={8} step={0.5}
-                                            defaultValue={[field.value || 1]}
-                                            onValueChange={(value) => field.onChange(value[0])}
-                                        />
-                                        <span className="font-bold text-primary w-24 text-center">{field.value !== undefined ? `${field.value} hr(s)` : `1 hr(s)`}</span>
-                                    </div>
-                                )}
-                            />
-                        </div>
-                    ))}
-                 </div>
-              )}
-
-              {step === 4 && (
-                 <div className="space-y-6 animate-fade-in">
-                    <h3 className="font-bold text-xl font-serif">Step 4: Assess Your Power</h3>
-                    <p className="text-muted-foreground font-serif">Rate your current level in each stat from 1 to 10.</p>
-                    {statOptions.map(stat => (
-                        <div key={stat.name} className="space-y-2">
-                            <Label className="flex items-center gap-2">{stat.icon} {stat.label}</Label>
-                            <Controller name={stat.name} control={control} render={({ field }) => (
-                                <div className="flex items-center gap-4">
-                                <Slider
-                                    min={1} max={10} step={1}
-                                    defaultValue={[field.value]}
-                                    onValueChange={(value) => field.onChange(value[0])}
-                                />
-                                <span className="font-bold text-primary w-6 text-center">{getValues(stat.name)}</span>
-                                </div>
-                            )} />
-                        </div>
-                    ))}
-                 </div>
-              )}
-
-              {step === 5 && (
-                <div className="space-y-4 animate-fade-in">
-                  <h3 className="font-bold text-xl font-serif">Step 5: Mission Difficulty</h3>
-                  <div>
-                    <Label className="font-serif">Choose your preferred task difficulty.</Label>
-                     <Controller name="difficultyPreference" control={control} render={({ field }) => (
-                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="mt-2 grid grid-cols-3 gap-4">
-                           {['Easy', 'Medium', 'Hard'].map(diff => (
-                            <Label key={diff} htmlFor={diff} className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary">
-                               <RadioGroupItem value={diff} id={diff} className="sr-only" />
-                               {diff}
-                            </Label>
-                           ))}
-                        </RadioGroup>
-                     )} />
-                  </div>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              {step > 1 && <Button type="button" variant="outline" onClick={prevStep} disabled={isSubmitting}>Back</Button>}
-              <div/>
-              {step < 5 && <Button type="button" onClick={nextStep} disabled={isSubmitting}>Next</Button>}
-              {step === 5 && (
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating Profile...' : 'Begin Your Ascent'}
+                ))}
+              </div>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+                  Back
                 </Button>
-              )}
-            </CardFooter>
-          </form>
-        </Card>
-      </div>
-    </SharedLayout>
+                <Button onClick={handleComplete} className="flex-1" disabled={remainingPoints !== 0}>
+                  Begin Journey
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
