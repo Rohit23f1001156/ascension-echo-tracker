@@ -638,15 +638,38 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Toggle habit
   const toggleHabit = useCallback((habitId: string) => {
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
+
+    const isCompleting = !habit.isCompleted;
+    const xpChange = habit.type === 'good' ? habit.xp : -habit.xp;
+    const newXp = Math.max(0, stats.xp + (isCompleting ? xpChange : -xpChange));
+    const coinsChange = Math.floor(habit.xp / 10);
+
     setHabits(prev => prev.map(h => 
       h.id === habitId ? { 
         ...h, 
         isCompleted: !h.isCompleted,
-        lastCompleted: !h.isCompleted ? new Date().toISOString() : h.lastCompleted
+        lastCompleted: !h.isCompleted ? new Date().toISOString() : h.lastCompleted,
+        streak: !h.isCompleted ? h.streak + 1 : Math.max(0, h.streak - 1)
       } : h
     ));
+
+    setStats(prevStats => ({
+      ...prevStats,
+      xp: newXp,
+      coins: Math.max(0, prevStats.coins + (isCompleting ? coinsChange : -coinsChange)),
+      streak: isCompleting ? prevStats.streak + 1 : Math.max(0, prevStats.streak - 1)
+    }));
+
+    if (isCompleting) {
+      toast.success(`${habit.type === 'good' ? 'Habit completed' : 'Temptation resisted'}! +${habit.xp} XP, +${coinsChange} coins`);
+    } else {
+      toast.info(`Habit undone. -${habit.xp} XP, -${coinsChange} coins`);
+    }
+
     setTimeout(() => saveAllDataToSupabase(), 1000);
-  }, [saveAllDataToSupabase]);
+  }, [habits, stats.xp, saveAllDataToSupabase]);
 
   // Update habit
   const updateHabit = useCallback((habitId: string, updates: Partial<Habit>) => {

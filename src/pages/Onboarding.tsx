@@ -58,7 +58,7 @@ const Onboarding = () => {
     const totalPoints = Object.values(formData).slice(2).reduce((sum: number, val: number) => sum + val, 0);
     const availablePoints = 20;
     
-    if (totalPoints - formData[stat as keyof typeof formData] + value <= availablePoints && value >= 1 && value <= 10) {
+    if (totalPoints - (formData[stat as keyof typeof formData] as number) + value <= availablePoints && value >= 1 && value <= 10) {
       setFormData(prev => ({ ...prev, [stat]: value }));
     }
   };
@@ -70,6 +70,19 @@ const Onboarding = () => {
     }
 
     try {
+      // Check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('data')
+        .select('id')
+        .eq('id', session.user.id)
+        .single();
+
+      if (existingProfile) {
+        // Profile exists, just redirect
+        navigate('/');
+        return;
+      }
+
       const profileData = {
         id: session.user.id,
         stats: {
@@ -112,7 +125,7 @@ const Onboarding = () => {
 
       const { error } = await supabase
         .from('data')
-        .upsert(profileData, { onConflict: 'id' });
+        .insert(profileData);
 
       if (error) {
         console.error('Error creating profile:', error);
@@ -210,8 +223,8 @@ const Onboarding = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleStatChange(stat.key, formData[stat.key as keyof typeof formData] as number - 1)}
-                        disabled={formData[stat.key as keyof typeof formData] <= 1}
+                        onClick={() => handleStatChange(stat.key, (formData[stat.key as keyof typeof formData] as number) - 1)}
+                        disabled={(formData[stat.key as keyof typeof formData] as number) <= 1}
                       >
                         -
                       </Button>
@@ -221,8 +234,8 @@ const Onboarding = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleStatChange(stat.key, formData[stat.key as keyof typeof formData] as number + 1)}
-                        disabled={remainingPoints <= 0 || formData[stat.key as keyof typeof formData] >= 10}
+                        onClick={() => handleStatChange(stat.key, (formData[stat.key as keyof typeof formData] as number) + 1)}
+                        disabled={remainingPoints <= 0 || (formData[stat.key as keyof typeof formData] as number) >= 10}
                       >
                         +
                       </Button>
