@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -202,7 +201,7 @@ const Index = () => {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Reset All Progress?</AlertDialogTitle>
-                          <AlertDialugDescription>
+                          <AlertDialogDescription>
                             This will permanently delete ALL your progress including stats, quests, journal entries, skill tree progress, and calendar history. You will need to complete onboarding again. This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
