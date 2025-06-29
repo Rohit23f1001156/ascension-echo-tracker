@@ -17,6 +17,28 @@ const HabitCard = ({ habit }: { habit: Habit }) => {
         Hard: "bg-red-500/20 text-red-400 border-red-500/30",
     };
 
+    // Calculate XP and coins based on difficulty
+    const getXPByDifficulty = (difficulty?: string): number => {
+        switch (difficulty) {
+            case "Easy": return 15;
+            case "Medium": return 25;
+            case "Hard": return 35;
+            default: return 15;
+        }
+    };
+
+    const getCoinsByDifficulty = (difficulty?: string): number => {
+        switch (difficulty) {
+            case "Easy": return 1;
+            case "Medium": return 2;
+            case "Hard": return 3;
+            default: return 1;
+        }
+    };
+
+    const xpReward = getXPByDifficulty(habit.difficulty);
+    const coinsReward = getCoinsByDifficulty(habit.difficulty);
+
     return (
         <Card className={cn(
             "transition-all duration-300",
@@ -45,10 +67,10 @@ const HabitCard = ({ habit }: { habit: Habit }) => {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <span className="text-primary font-semibold">
-                            {habit.xp} XP
+                            {xpReward} XP
                         </span>
                         <span className="text-yellow-500 font-semibold">
-                            +{Math.floor(habit.xp / 10)} coins
+                            +{coinsReward} coins
                         </span>
                     </div>
                     <div className="flex items-center gap-2 text-orange-500">

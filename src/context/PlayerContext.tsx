@@ -465,7 +465,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Reset local state
       setStats(defaultStats);
-      setQuests(defaultQuests);
+      setQuests([]);
       setCompletedQuests(new Set());
       setQuestLog([]);
       setJournalEntries([]);
@@ -677,22 +677,38 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTimeout(() => saveAllDataToSupabase(), 1000);
   }, [saveAllDataToSupabase]);
 
-  // Toggle habit with difficulty-based rewards
+  // Enhanced difficulty-based rewards for habits
+  const getXPByDifficulty = (difficulty?: string): number => {
+    switch (difficulty) {
+      case "Easy": return 15;
+      case "Medium": return 25;
+      case "Hard": return 35;
+      default: return 15;
+    }
+  };
+
+  const getCoinsByDifficulty = (difficulty?: string): number => {
+    switch (difficulty) {
+      case "Easy": return 1;
+      case "Medium": return 2;
+      case "Hard": return 3;
+      default: return 1;
+    }
+  };
+
+  // Enhanced habit toggle with proper difficulty-based rewards
   const toggleHabit = useCallback((habitId: string) => {
     const habit = habits.find(h => h.id === habitId);
     if (!habit) return;
 
     const isCompleting = !habit.isCompleted;
     
-    // Difficulty-based rewards
-    const rewardMap = {
-      Easy: { xp: 15, coins: 1 },
-      Medium: { xp: 25, coins: 2 },
-      Hard: { xp: 35, coins: 3 },
-    };
-    const reward = rewardMap[habit.difficulty || 'Easy'];
-    const xpChange = habit.type === 'good' ? reward.xp : -reward.xp;
-    const coinsChange = habit.type === 'good' ? reward.coins : -reward.coins;
+    // Use difficulty-based rewards
+    const xpReward = getXPByDifficulty(habit.difficulty);
+    const coinsReward = getCoinsByDifficulty(habit.difficulty);
+    
+    const xpChange = habit.type === 'good' ? xpReward : -xpReward;
+    const coinsChange = habit.type === 'good' ? coinsReward : -coinsReward;
     
     const newXp = Math.max(0, stats.xp + (isCompleting ? xpChange : -xpChange));
 
@@ -712,9 +728,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     if (isCompleting) {
-      toast.success(`${habit.type === 'good' ? 'Habit completed' : 'Temptation resisted'}! +${reward.xp} XP, +${reward.coins} coins`);
+      toast.success(`${habit.type === 'good' ? 'Habit completed' : 'Temptation resisted'}! +${xpReward} XP, +${coinsReward} coins`);
     } else {
-      toast.info(`Habit undone. -${reward.xp} XP, -${reward.coins} coins`);
+      toast.info(`Habit undone. -${xpReward} XP, -${coinsReward} coins`);
     }
 
     setTimeout(() => saveAllDataToSupabase(), 1000);

@@ -72,22 +72,28 @@ const Onboarding = () => {
       return;
     }
 
+    // Validate all stats are properly set
+    if (!formData.strength || !formData.stamina || !formData.concentration || 
+        !formData.intelligence || !formData.wealth) {
+      toast.error('Please allocate all stat points');
+      return;
+    }
+
     try {
       // Check if profile already exists
       const { data: existingProfile } = await supabase
         .from('data')
-        .select('id')
+        .select('onboarding_complete')
         .eq('id', session.user.id)
         .single();
 
-      if (existingProfile) {
-        // Profile exists, just redirect
+      if (existingProfile?.onboarding_complete) {
+        // Profile completed, just redirect
         navigate('/');
         return;
       }
 
       const profileData = {
-        id: session.user.id,
         stats: {
           name: formData.name,
           class: formData.class,
@@ -128,10 +134,11 @@ const Onboarding = () => {
 
       const { error } = await supabase
         .from('data')
-        .insert(profileData);
+        .update(profileData)
+        .eq('id', session.user.id);
 
       if (error) {
-        console.error('Error creating profile:', error);
+        console.error('Error updating profile:', error);
         toast.error('Failed to complete onboarding');
         return;
       }

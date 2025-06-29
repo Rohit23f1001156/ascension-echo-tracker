@@ -8,12 +8,14 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   loading: true,
+  logout: async () => {},
 });
 
 const clearPlayerData = () => {
@@ -35,62 +37,142 @@ const clearPlayerData = () => {
   localStorage.removeItem('skillTree');
 };
 
+// Default data structures
+const defaultStats = {
+  name: '',
+  class: 'Shadow Hunter',
+  title: 'Novice',
+  level: 0,
+  xp: 0,
+  xpNextLevel: 1000,
+  strength: 1,
+  stamina: 1,
+  concentration: 1,
+  intelligence: 1,
+  wealth: 1,
+  skills: 1,
+  streak: 0,
+  availablePoints: 0,
+  statPointsToAllocate: 0,
+  coins: 0,
+  lastActivityDate: null,
+  buffs: [],
+  journalStreak: 0,
+  lastJournalEntryDate: null,
+};
+
+const defaultSettings = {
+  quests: [],
+  completedQuests: [],
+  questLog: [],
+  journalEntries: [],
+  skillTree: [],
+  calendarData: {},
+  shadowTrials: [],
+  habits: [],
+  masteredSkills: [],
+  activeSkillQuests: []
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const syncProfile = async (session: Session | null) => {
-      if (session?.user) {
-        try {
-          console.log('Syncing profile for user:', session.user.id);
-          
-          // FIXED: Check if profile exists in 'data' table with .single()
-          const { data: profile, error } = await supabase
-            .from('data')  // FIXED: Using 'data' instead of 'profiles'
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (error) {
-            if (error.code === 'PGRST116') {
-              console.log('No profile found - user needs to complete onboarding');
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Logout failed:", error);
+        toast.error("Failed to logout");
+      } else {
+        clearPlayerData();
+        toast.success("Logged out successfully");
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+      toast.error("Failed to logout");
+    }
+  };
+
+  const createDefaultUserData = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('data')
+        .insert({
+          id: userId,
+          stats: defaultStats,
+          settings: defaultSettings,
+          onboarding_complete: false,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error creating default user data:', error);
+        return false;
+      }
+      
+      console.log('Created default user data for:', userId);
+      return true;
+    } catch (err) {
+      console.error('Error in createDefaultUserData:', err);
+      return false;
+    }
+  };
+
+  const syncProfile = async (session: Session | null) => {
+    if (session?.user) {
+      try {
+        console.log('Syncing profile for user:', session.user.id);
+        
+        const { data: profile, error } = await supabase
+          .from('data')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (error) {
+          if (error.code === 'PGRST116') {
+            console.log('No profile found - creating default data and redirecting to onboarding');
+            const created = await createDefaultUserData(session.user.id);
+            if (created) {
               clearPlayerData();
               toast.info('Welcome! Please complete your profile setup.');
-            } else {
-              console.error('Error fetching profile:', error);
-              toast.error('Error loading your profile. Check your database setup.');
+              // Don't redirect here, let the app handle it
             }
-          } else if (profile && profile.onboarding_complete === true) {
-            console.log('Loading existing profile from Supabase:', profile);
-            
-            // FIXED: Load all saved data from Supabase properly
-            if (profile.stats) {
-              localStorage.setItem('playerStats', JSON.stringify(profile.stats));
-              console.log('Loaded stats from Supabase:', profile.stats);
-            }
-            if (profile.settings) {
-              localStorage.setItem('playerProfile', JSON.stringify(profile.settings));
-              console.log('Loaded settings from Supabase:', profile.settings);
-            }
-            
-            localStorage.setItem('onboardingComplete', 'true');
-            toast.success('Welcome back! Your progress has been loaded.');
           } else {
-            console.log('Profile found but onboarding not complete - redirecting to onboarding');
-            clearPlayerData();
+            console.error('Error fetching profile:', error);
+            toast.error('Error loading your profile. Check your database setup.');
           }
-        } catch (err) {
-          console.error('Error syncing profile:', err);
-          toast.error('Failed to sync your profile. Using local storage for now.');
+        } else if (profile && profile.onboarding_complete === true) {
+          console.log('Loading existing profile from Supabase:', profile);
+          
+          if (profile.stats) {
+            localStorage.setItem('playerStats', JSON.stringify(profile.stats));
+            console.log('Loaded stats from Supabase:', profile.stats);
+          }
+          if (profile.settings) {
+            localStorage.setItem('playerProfile', JSON.stringify(profile.settings));
+            console.log('Loaded settings from Supabase:', profile.settings);
+          }
+          
+          localStorage.setItem('onboardingComplete', 'true');
+          toast.success('Welcome back! Your progress has been loaded.');
+        } else {
+          console.log('Profile found but onboarding not complete - user needs onboarding');
+          clearPlayerData();
         }
-      } else {
-        console.log('No session, clearing player data');
-        clearPlayerData();
+      } catch (err) {
+        console.error('Error syncing profile:', err);
+        toast.error('Failed to sync your profile. Using local storage for now.');
       }
-    };
-    
+    } else {
+      console.log('No session, clearing player data');
+      clearPlayerData();
+    }
+  };
+  
+  useEffect(() => {
     const getSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -137,6 +219,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     session,
     user,
     loading,
+    logout,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
