@@ -56,9 +56,7 @@ const Onboarding = () => {
 
   const handleStatChange = (stat: string, value: number) => {
     const currentStatValue = formData[stat as keyof typeof formData] as number;
-    const totalPoints = Object.values(formData).slice(2).reduce((sum: number, val: unknown) => {
-      return sum + (typeof val === 'number' ? val : 0);
-    }, 0);
+    const totalPoints = formData.strength + formData.stamina + formData.concentration + formData.intelligence + formData.wealth;
     const availablePoints = 20;
     
     if (totalPoints - currentStatValue + value <= availablePoints && value >= 1 && value <= 10) {
@@ -157,9 +155,7 @@ const Onboarding = () => {
     }
   };
 
-  const totalPoints = Object.values(formData).slice(2).reduce((sum: number, val: unknown) => {
-    return sum + (typeof val === 'number' ? val : 0);
-  }, 0);
+  const totalPoints = formData.strength + formData.stamina + formData.concentration + formData.intelligence + formData.wealth;
   const remainingPoints = 20 - totalPoints;
 
   return (
