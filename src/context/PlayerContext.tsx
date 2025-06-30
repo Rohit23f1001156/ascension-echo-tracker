@@ -65,7 +65,7 @@ export interface Quest {
   isDailyQuest?: boolean;
   date?: string;
   isRecurring?: boolean;
-  difficulty?: string;
+  difficulty?: 'Easy' | 'Medium' | 'Hard';
   startDate?: string;
   endDate?: string;
   streak?: number;
@@ -148,6 +148,7 @@ interface PlayerContextType {
   justMasteredSkillId: string | null;
   
   updateStats: (newStats: Partial<PlayerStats>) => void;
+  allocateStatPoint: (stat: string) => void;
   addHabit: (habit: Omit<Habit, 'id'>) => void;
   toggleHabit: (habitId: string) => void;
   deleteHabit: (habitId: string) => void;
@@ -429,6 +430,17 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const allocateStatPoint = (stat: string) => {
+    if (stats.statPointsToAllocate <= 0) return;
+    
+    setStats(prev => ({
+      ...prev,
+      [stat]: prev[stat as keyof PlayerStats] + 1,
+      statPointsToAllocate: prev.statPointsToAllocate - 1,
+      availablePoints: prev.availablePoints - 1
+    }));
+  };
+
   const clearLevelUpData = () => {
     setLevelUpAnimation(false);
     setLevelUpData(null);
@@ -672,6 +684,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     levelUpData,
     justMasteredSkillId,
     updateStats,
+    allocateStatPoint,
     addHabit,
     toggleHabit,
     deleteHabit,
