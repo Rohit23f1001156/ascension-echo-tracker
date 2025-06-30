@@ -406,14 +406,55 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!session?.user?.id) return;
 
     try {
-      // Delete user's profile row from Supabase
+      const defaultStats = {
+        name: '',
+        class: 'Shadow Hunter',
+        title: 'Novice',
+        level: 0,
+        xp: 0,
+        xpNextLevel: 1000,
+        strength: 1,
+        stamina: 1,
+        concentration: 1,
+        intelligence: 1,
+        wealth: 1,
+        skills: 1,
+        streak: 0,
+        availablePoints: 0,
+        statPointsToAllocate: 0,
+        coins: 0,
+        lastActivityDate: null,
+        buffs: [],
+        journalStreak: 0,
+        lastJournalEntryDate: null,
+      };
+
+      const defaultSettings = {
+        quests: [],
+        completedQuests: [],
+        questLog: [],
+        journalEntries: [],
+        skillTree: [],
+        calendarData: {},
+        shadowTrials: [],
+        habits: [],
+        masteredSkills: [],
+        activeSkillQuests: []
+      };
+
+      // Update Supabase with defaults instead of deleting
       const { error } = await supabase
         .from('data')
-        .delete()
+        .update({
+          stats: defaultStats,
+          settings: defaultSettings,
+          onboarding_complete: false,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', session.user.id);
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-        console.error('Error deleting data in Supabase:', error);
+      if (error) {
+        console.error('Error resetting data in Supabase:', error);
         toast.error('Failed to reset progress in cloud');
         return;
       }
@@ -645,9 +686,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // Difficulty-based rewards
     const rewardMap = {
-      Easy: { xp: 10, coins: 1 },
-      Medium: { xp: 20, coins: 2 },
-      Hard: { xp: 30, coins: 3 },
+      Easy: { xp: 15, coins: 1 },
+      Medium: { xp: 25, coins: 2 },
+      Hard: { xp: 35, coins: 3 },
     };
     const reward = rewardMap[habit.difficulty || 'Easy'];
     const xpChange = habit.type === 'good' ? reward.xp : -reward.xp;
@@ -664,12 +705,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       } : h
     ));
 
-    setStats(prevStats => ({
-      ...prevStats,
+    updateStats({ 
       xp: newXp,
-      coins: Math.max(0, prevStats.coins + (isCompleting ? coinsChange : -coinsChange)),
-      streak: isCompleting ? prevStats.streak + 1 : Math.max(0, prevStats.streak - 1)
-    }));
+      coins: Math.max(0, stats.coins + (isCompleting ? coinsChange : -coinsChange)),
+      streak: isCompleting ? stats.streak + 1 : Math.max(0, stats.streak - 1)
+    });
 
     if (isCompleting) {
       toast.success(`${habit.type === 'good' ? 'Habit completed' : 'Temptation resisted'}! +${reward.xp} XP, +${reward.coins} coins`);
@@ -678,7 +718,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     setTimeout(() => saveAllDataToSupabase(), 1000);
-  }, [habits, stats.xp, saveAllDataToSupabase]);
+  }, [habits, stats.xp, stats.coins, stats.streak, updateStats, saveAllDataToSupabase]);
 
   // Update habit
   const updateHabit = useCallback((habitId: string, updates: Partial<Habit>) => {
@@ -953,7 +993,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const dayKey = date.toISOString().split('T')[0];
       
       data[dayKey] = {
-        date: dayKey,
         xp: calendarData[dayKey]?.xp || 0,
         total: calendarData[dayKey]?.total || 0,
         quests: calendarData[dayKey]?.quests || [],
