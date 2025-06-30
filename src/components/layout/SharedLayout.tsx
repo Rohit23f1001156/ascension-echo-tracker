@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import Header from './Header';
 import { usePlayer } from '@/context/PlayerContext';
@@ -69,10 +68,7 @@ ${data.gratitude || "None recorded."}
 `;
 
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const todayEntry = journalEntries.find(entry => {
-      const entryDate = entry.createdAt ? format(parseISO(entry.createdAt), 'yyyy-MM-dd') : entry.date;
-      return format(parseISO(entryDate), 'yyyy-MM-dd') === todayStr;
-    });
+    const todayEntry = journalEntries.find(entry => format(parseISO(entry.createdAt), 'yyyy-MM-dd') === todayStr);
 
     if (todayEntry) {
       const updatedEntry = {
@@ -80,16 +76,14 @@ ${data.gratitude || "None recorded."}
         mood: todayEntry.mood,
         tags: todayEntry.tags,
         content: `${todayEntry.content}\n\n---\n\n**Evening Reflection**\n\n${reflectionContent}`,
-        date: todayEntry.date,
       };
       addJournalEntry(updatedEntry, todayEntry.id);
     } else {
       const newEntry = {
         title: `Journal - ${format(new Date(), 'PPP')}`,
         content: `**Evening Reflection**\n\n${reflectionContent}`,
-        mood: 'okay' as const,
+        mood: '😐',
         tags: ['reflection'],
-        date: todayStr,
       };
       addJournalEntry(newEntry, null);
     }

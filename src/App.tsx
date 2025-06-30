@@ -1,98 +1,99 @@
 
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
-import { PlayerProvider } from "@/context/PlayerContext";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import LevelUpConfetti from "@/components/LevelUpConfetti";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import DailyQuests from "./pages/DailyQuests";
+import SkillTree from "./pages/SkillTree";
+import Stats from "./pages/Stats";
+import Journal from "./pages/Journal";
+import CalendarPage from "./pages/CalendarPage";
+import BossFights from "./pages/BossFights";
+import Settings from "./pages/Settings";
+import Onboarding from "./pages/Onboarding";
+import { PlayerProvider, usePlayer } from "./context/PlayerContext";
+import CustomTasks from "./pages/CustomTasks";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Onboarding from "./pages/Onboarding";
-import Settings from "./pages/Settings";
-import Journal from "./pages/Journal";
-import SkillTree from "./pages/SkillTree";
-import CalendarPage from "./pages/CalendarPage";
-import Stats from "./pages/Stats";
-import DailyQuests from "./pages/DailyQuests";
-import CustomTasks from "./pages/CustomTasks";
-import BossFights from "./pages/BossFights";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function App() {
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter>
+      <AuthProvider>
+        <PlayerProviderWrapper />
+      </AuthProvider>
+    </BrowserRouter>
+  </QueryClientProvider>
+);
+
+const PlayerProviderWrapper = () => {
+  const { session } = useAuth();
   return (
-    <QueryClientProvider client={queryClient}>
+    <PlayerProvider key={session?.user?.id || 'no-session'}>
       <TooltipProvider>
         <Toaster />
-        <BrowserRouter>
-          <AuthProvider>
-            <PlayerProvider>
-              <LevelUpConfetti />
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/onboarding" element={
-                  <ProtectedRoute>
-                    <Onboarding />
-                  </ProtectedRoute>
-                } />
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <Index />
-                  </ProtectedRoute>
-                } />
-                <Route path="/settings" element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                } />
-                <Route path="/journal" element={
-                  <ProtectedRoute>
-                    <Journal />
-                  </ProtectedRoute>
-                } />
-                <Route path="/skill-tree" element={
-                  <ProtectedRoute>
-                    <SkillTree />
-                  </ProtectedRoute>
-                } />
-                <Route path="/calendar" element={
-                  <ProtectedRoute>
-                    <CalendarPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/stats" element={
-                  <ProtectedRoute>
-                    <Stats />
-                  </ProtectedRoute>
-                } />
-                <Route path="/daily-quests" element={
-                  <ProtectedRoute>
-                    <DailyQuests />
-                  </ProtectedRoute>
-                } />
-                <Route path="/custom-tasks" element={
-                  <ProtectedRoute>
-                    <CustomTasks />
-                  </ProtectedRoute>
-                } />
-                <Route path="/boss-fights" element={
-                  <ProtectedRoute>
-                    <BossFights />
-                  </ProtectedRoute>
-                } />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </PlayerProvider>
-          </AuthProvider>
-        </BrowserRouter>
+        <Sonner />
+        <AppRoutes />
       </TooltipProvider>
-    </QueryClientProvider>
+    </PlayerProvider>
   );
-}
+};
+
+const AppRoutes = () => {
+  const { session, loading } = useAuth();
+  const { stats } = usePlayer();
+  
+  // Check if onboarding is complete by verifying name exists and is not empty
+  const onboardingComplete = stats.name && stats.name.trim().length > 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      {session ? (
+        onboardingComplete ? (
+          <>
+            <Route path="/" element={<Index />} />
+            <Route path="/daily-quests" element={<DailyQuests />} />
+            <Route path="/skill-tree" element={<SkillTree />} />
+            <Route path="/stats" element={<Stats />} />
+            <Route path="/journal" element={<Journal />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/boss-fights" element={<BossFights />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/custom-tasks" element={<CustomTasks />} />
+            <Route path="/onboarding" element={<Navigate to="/" />} />
+            <Route path="/login" element={<Navigate to="/" />} />
+            <Route path="/signup" element={<Navigate to="/" />} />
+            <Route path="*" element={<NotFound />} />
+          </>
+        ) : (
+          <>
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="*" element={<Navigate to="/onboarding" />} />
+          </>
+        )
+      ) : (
+        <>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="*" element={<Navigate to="/login" />} />
+        </>
+      )}
+    </Routes>
+  );
+};
 
 export default App;

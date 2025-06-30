@@ -56,7 +56,7 @@ const Onboarding = () => {
 
   const handleStatChange = (stat: string, value: number) => {
     const currentStatValue = formData[stat as keyof typeof formData] as number;
-    const totalPoints = formData.strength + formData.stamina + formData.concentration + formData.intelligence + formData.wealth;
+    const totalPoints = Object.values(formData).slice(2).reduce((sum: number, val: number) => sum + val, 0);
     const availablePoints = 20;
     
     if (totalPoints - currentStatValue + value <= availablePoints && value >= 1 && value <= 10) {
@@ -65,30 +65,27 @@ const Onboarding = () => {
   };
 
   const handleComplete = async () => {
-    if (!session?.user?.id) {
-      toast.error('Authentication error. Please log in again.');
-      return;
-    }
-
-    if (!formData.name || !formData.name.trim()) {
-      toast.error('Please enter your name');
-      return;
-    }
-
-    if (!formData.class) {
-      toast.error('Please select a class');
-      return;
-    }
-
-    // Validate all stats are properly set
-    if (!formData.strength || !formData.stamina || !formData.concentration || 
-        !formData.intelligence || !formData.wealth) {
-      toast.error('Please allocate all stat points');
+    if (!session?.user?.id || !formData.name.trim()) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
     try {
+      // Check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('data')
+        .select('id')
+        .eq('id', session.user.id)
+        .single();
+
+      if (existingProfile) {
+        // Profile exists, just redirect
+        navigate('/');
+        return;
+      }
+
       const profileData = {
+        id: session.user.id,
         stats: {
           name: formData.name,
           class: formData.class,
@@ -129,11 +126,10 @@ const Onboarding = () => {
 
       const { error } = await supabase
         .from('data')
-        .update(profileData)
-        .eq('id', session.user.id);
+        .insert(profileData);
 
       if (error) {
-        console.error('Error updating profile:', error);
+        console.error('Error creating profile:', error);
         toast.error('Failed to complete onboarding');
         return;
       }
@@ -152,7 +148,7 @@ const Onboarding = () => {
     }
   };
 
-  const totalPoints = formData.strength + formData.stamina + formData.concentration + formData.intelligence + formData.wealth;
+  const totalPoints = Object.values(formData).slice(2).reduce((sum: number, val: number) => sum + val, 0);
   const remainingPoints = 20 - totalPoints;
 
   return (

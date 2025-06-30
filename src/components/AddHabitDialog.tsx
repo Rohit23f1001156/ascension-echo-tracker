@@ -88,8 +88,8 @@ const AddHabitDialog = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Easy">Easy (25 XP)</SelectItem>
-                <SelectItem value="Medium">Medium (45 XP)</SelectItem>
-                <SelectItem value="Hard">Hard (60 XP)</SelectItem>
+                <SelectItem value="Medium">Medium (50 XP)</SelectItem>
+                <SelectItem value="Hard">Hard (100 XP)</SelectItem>
               </SelectContent>
             </Select>
           </div>
