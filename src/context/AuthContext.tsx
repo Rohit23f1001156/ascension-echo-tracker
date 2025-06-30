@@ -87,7 +87,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         toast.error("Failed to logout");
       } else {
         clearPlayerData();
+        setSession(null);
+        setUser(null);
         toast.success("Logged out successfully");
+        window.location.href = '/login';
       }
     } catch (err) {
       console.error("Logout error:", err);
@@ -138,7 +141,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (created) {
               clearPlayerData();
               toast.info('Welcome! Please complete your profile setup.');
-              // Don't redirect here, let the app handle it
             }
           } else {
             console.error('Error fetching profile:', error);
@@ -198,6 +200,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (event === 'SIGNED_OUT') {
         clearPlayerData();
+        setSession(null);
+        setUser(null);
         toast.info('Logged out successfully.');
       }
       

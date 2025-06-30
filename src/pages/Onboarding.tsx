@@ -65,8 +65,18 @@ const Onboarding = () => {
   };
 
   const handleComplete = async () => {
-    if (!session?.user?.id || !formData.name.trim()) {
-      toast.error('Please fill in all required fields');
+    if (!session?.user?.id) {
+      toast.error('Authentication error. Please log in again.');
+      return;
+    }
+
+    if (!formData.name || !formData.name.trim()) {
+      toast.error('Please enter your name');
+      return;
+    }
+
+    if (!formData.class) {
+      toast.error('Please select a class');
       return;
     }
 
@@ -78,19 +88,6 @@ const Onboarding = () => {
     }
 
     try {
-      // Check if profile already exists
-      const { data: existingProfile } = await supabase
-        .from('data')
-        .select('onboarding_complete')
-        .eq('id', session.user.id)
-        .single();
-
-      if (existingProfile?.onboarding_complete) {
-        // Profile completed, just redirect
-        navigate('/');
-        return;
-      }
-
       const profileData = {
         stats: {
           name: formData.name,

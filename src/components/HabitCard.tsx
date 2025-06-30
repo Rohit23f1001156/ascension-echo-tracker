@@ -20,10 +20,10 @@ const HabitCard = ({ habit }: { habit: Habit }) => {
     // Calculate XP and coins based on difficulty
     const getXPByDifficulty = (difficulty?: string): number => {
         switch (difficulty) {
-            case "Easy": return 15;
-            case "Medium": return 25;
-            case "Hard": return 35;
-            default: return 15;
+            case "Easy": return 25;
+            case "Medium": return 45;
+            case "Hard": return 60;
+            default: return 25;
         }
     };
 
