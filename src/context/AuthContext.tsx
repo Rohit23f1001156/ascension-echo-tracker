@@ -68,7 +68,44 @@ const defaultSettings = {
   journalEntries: [],
   skillTree: [],
   calendarData: {},
-  shadowTrials: [],
+  shadowTrials: [
+    {
+      id: 'trial_1',
+      title: 'Shadow Walker',
+      description: 'Complete 5 habits in a single day',
+      xp: 150,
+      coins: 15,
+      difficulty: 'easy',
+      completed: false,
+      isUnlocked: true,
+      category: 'beginner',
+      xpReward: 150
+    },
+    {
+      id: 'trial_2',
+      title: 'Mind Master',
+      description: 'Maintain a 7-day streak on any habit',
+      xp: 300,
+      coins: 30,
+      difficulty: 'medium',
+      completed: false,
+      isUnlocked: true,
+      category: 'habits',
+      xpReward: 300
+    },
+    {
+      id: 'trial_3',
+      title: 'Shadow Ascendant',
+      description: 'Reach level 10 and complete 50 total quests',
+      xp: 500,
+      coins: 50,
+      difficulty: 'hard',
+      completed: false,
+      isUnlocked: true,
+      category: 'skills',
+      xpReward: 500
+    }
+  ],
   habits: [],
   masteredSkills: [],
   activeSkillQuests: []
@@ -141,28 +178,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (created) {
               clearPlayerData();
               toast.info('Welcome! Please complete your profile setup.');
+              setTimeout(() => {
+                window.location.href = '/onboarding';
+              }, 100);
             }
           } else {
             console.error('Error fetching profile:', error);
             toast.error('Error loading your profile. Check your database setup.');
           }
-        } else if (profile && profile.onboarding_complete === true) {
-          console.log('Loading existing profile from Supabase:', profile);
+        } else if (profile) {
+          console.log('Profile found:', profile);
           
-          if (profile.stats) {
-            localStorage.setItem('playerStats', JSON.stringify(profile.stats));
-            console.log('Loaded stats from Supabase:', profile.stats);
+          if (profile.onboarding_complete === true) {
+            console.log('Loading existing profile from Supabase:', profile);
+            
+            if (profile.stats) {
+              localStorage.setItem('playerStats', JSON.stringify(profile.stats));
+              console.log('Loaded stats from Supabase:', profile.stats);
+            }
+            if (profile.settings) {
+              localStorage.setItem('playerProfile', JSON.stringify(profile.settings));
+              console.log('Loaded settings from Supabase:', profile.settings);
+            }
+            
+            localStorage.setItem('onboardingComplete', 'true');
+            toast.success('Welcome back! Your progress has been loaded.');
+            
+            // If user is on onboarding page but has completed it, redirect to home
+            if (window.location.pathname === '/onboarding') {
+              window.location.href = '/';
+            }
+          } else {
+            console.log('Profile found but onboarding not complete - user needs onboarding');
+            clearPlayerData();
+            // Only redirect to onboarding if not already there
+            if (window.location.pathname !== '/onboarding') {
+              setTimeout(() => {
+                window.location.href = '/onboarding';
+              }, 100);
+            }
           }
-          if (profile.settings) {
-            localStorage.setItem('playerProfile', JSON.stringify(profile.settings));
-            console.log('Loaded settings from Supabase:', profile.settings);
-          }
-          
-          localStorage.setItem('onboardingComplete', 'true');
-          toast.success('Welcome back! Your progress has been loaded.');
-        } else {
-          console.log('Profile found but onboarding not complete - user needs onboarding');
-          clearPlayerData();
         }
       } catch (err) {
         console.error('Error syncing profile:', err);
@@ -203,13 +258,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(null);
         setUser(null);
         toast.info('Logged out successfully.');
+        window.location.href = '/login';
       }
       
-      await syncProfile(session);
-      setSession(session);
-      setUser(session?.user ?? null);
-      
       if (event === 'SIGNED_IN') {
+        await syncProfile(session);
+        setSession(session);
+        setUser(session?.user ?? null);
         toast.success('Logged in successfully!');
       }
     });

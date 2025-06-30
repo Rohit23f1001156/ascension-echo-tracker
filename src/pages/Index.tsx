@@ -54,6 +54,7 @@ import AnalyticsChart from "@/components/AnalyticsChart";
 import LevelUpDialog from "@/components/LevelUpDialog";
 import FloatingCoins from "@/components/FloatingCoins";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 const quickActions = [
   { title: "Daily Quests", icon: Swords, url: "/daily-quests", description: "Complete your daily challenges and build consistent habits" },
@@ -75,6 +76,7 @@ const motivationalQuotes = [
 
 const Index = () => {
   const { stats: systemStats, levelUpAnimation, levelUpData, clearLevelUpData, resetAllData } = usePlayer();
+  const { logout } = useAuth();
   const [quote, setQuote] = useState("");
   const navigate = useNavigate();
 
@@ -88,7 +90,7 @@ const Index = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logout();
   };
 
   const StatItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: number | string }) => (

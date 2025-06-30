@@ -14,7 +14,7 @@ interface ShadowTrialCardProps {
 const ShadowTrialCard: React.FC<ShadowTrialCardProps> = ({ trial }) => {
   const { completeShadowTrial, undoShadowTrial } = usePlayer();
 
-  const getCategoryIcon = (category: string) => {
+  const getCategoryIcon = (category?: string) => {
     switch (category) {
       case 'beginner':
         return <Star className="w-4 h-4" />;
@@ -27,7 +27,7 @@ const ShadowTrialCard: React.FC<ShadowTrialCardProps> = ({ trial }) => {
     }
   };
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (category?: string) => {
     switch (category) {
       case 'beginner':
         return 'bg-green-500/20 text-green-400 border-green-500/30';
@@ -40,9 +40,11 @@ const ShadowTrialCard: React.FC<ShadowTrialCardProps> = ({ trial }) => {
     }
   };
 
+  const isCompleted = trial.completed || trial.isCompleted;
+
   return (
     <Card className={`transition-all duration-300 ${
-      trial.isCompleted 
+      isCompleted 
         ? 'bg-green-500/10 border-green-500/30' 
         : 'bg-card/70 hover:bg-card/90'
     }`}>
@@ -53,7 +55,7 @@ const ShadowTrialCard: React.FC<ShadowTrialCardProps> = ({ trial }) => {
             {trial.title}
           </CardTitle>
           <Badge className={getCategoryColor(trial.category)}>
-            {trial.category}
+            {trial.category || 'trial'}
           </Badge>
         </div>
         <CardDescription>{trial.description}</CardDescription>
@@ -62,14 +64,14 @@ const ShadowTrialCard: React.FC<ShadowTrialCardProps> = ({ trial }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-primary font-semibold">
-              {trial.xpReward} XP
+              {trial.xpReward || trial.xp} XP
             </span>
             <span className="text-yellow-500 font-semibold">
-              +{Math.floor(trial.xpReward / 10)} coins
+              +{Math.floor((trial.xpReward || trial.xp) / 10)} coins
             </span>
           </div>
           
-          {trial.isCompleted ? (
+          {isCompleted ? (
             <Button
               onClick={() => undoShadowTrial(trial.id)}
               variant="outline"
@@ -91,7 +93,7 @@ const ShadowTrialCard: React.FC<ShadowTrialCardProps> = ({ trial }) => {
           )}
         </div>
         
-        {trial.isCompleted && (
+        {isCompleted && (
           <div className="mt-2 text-center">
             <Badge variant="outline" className="text-green-400 border-green-500/30">
               ✓ Completed

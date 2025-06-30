@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
@@ -26,7 +27,7 @@ interface PlayerStats {
   lastJournalEntryDate: string | null;
 }
 
-interface Buff {
+export interface Buff {
   id: string;
   name: string;
   description: string;
@@ -62,6 +63,13 @@ export interface Quest {
   assignedDate?: string;
   dailyQuestDate?: string;
   isDailyQuest?: boolean;
+  date?: string;
+  isRecurring?: boolean;
+  difficulty?: string;
+  startDate?: string;
+  endDate?: string;
+  streak?: number;
+  questId?: string;
 }
 
 export interface ShadowTrial {
@@ -75,6 +83,9 @@ export interface ShadowTrial {
   completedAt?: string;
   unlockRequirement?: string;
   isUnlocked: boolean;
+  isCompleted?: boolean;
+  category?: string;
+  xpReward?: number;
 }
 
 export interface JournalEntry {
@@ -84,6 +95,8 @@ export interface JournalEntry {
   mood?: 'great' | 'good' | 'okay' | 'bad' | 'terrible';
   tags?: string[];
   reflections?: string[];
+  title?: string;
+  createdAt?: string;
 }
 
 export interface SkillNode {
@@ -102,6 +115,9 @@ export interface SkillNode {
     coins: number;
     buff?: Buff;
   };
+  tasks?: any[];
+  xp?: number;
+  isMastered?: boolean;
 }
 
 export interface CalendarEntry {
@@ -127,6 +143,9 @@ interface PlayerContextType {
   masteredSkills: SkillNode[];
   activeSkillQuests: Quest[];
   isLoading: boolean;
+  levelUpAnimation: boolean;
+  levelUpData: any;
+  justMasteredSkillId: string | null;
   
   updateStats: (newStats: Partial<PlayerStats>) => void;
   addHabit: (habit: Omit<Habit, 'id'>) => void;
@@ -136,17 +155,27 @@ interface PlayerContextType {
   completeQuest: (questId: string) => void;
   deleteQuest: (questId: string) => void;
   updateQuest: (questId: string, updates: Partial<Quest>) => void;
-  addJournalEntry: (entry: Omit<JournalEntry, 'id'>) => void;
+  addJournalEntry: (entry: Omit<JournalEntry, 'id'>, entryId?: string | null) => void;
   updateJournalEntry: (entryId: string, updates: Partial<JournalEntry>) => void;
   deleteJournalEntry: (entryId: string) => void;
   updateSkillTree: (nodes: SkillNode[]) => void;
   updateCalendarEntry: (date: string, entry: CalendarEntry) => void;
   addShadowTrial: (trial: Omit<ShadowTrial, 'id'>) => void;
   completeShadowTrial: (trialId: string) => void;
+  undoShadowTrial: (trialId: string) => void;
   updatePlayerProfile: (profile: { name: string; class: string }) => void;
   saveToSupabase: () => Promise<void>;
   loadFromSupabase: () => Promise<void>;
-  restartProgress: () => Promise<void>;
+  resetAllData: () => Promise<void>;
+  clearLevelUpData: () => void;
+  toggleQuest: (questId: string) => void;
+  setConfettiConfig: (config: any) => void;
+  addSkillNode: (node: SkillNode) => void;
+  updateSkillNode: (nodeId: string, updates: Partial<SkillNode>) => void;
+  startSkillQuest: (nodeId: string) => void;
+  cancelSkillQuest: (nodeId: string) => void;
+  toggleSkillTask: (nodeId: string, taskId: string) => void;
+  deleteSkillNode: (nodeId: string) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -174,6 +203,46 @@ const defaultStats: PlayerStats = {
   lastJournalEntryDate: null,
 };
 
+// Default Shadow Trials
+const defaultShadowTrials: ShadowTrial[] = [
+  {
+    id: 'trial_1',
+    title: 'Shadow Walker',
+    description: 'Complete 5 habits in a single day',
+    xp: 150,
+    coins: 15,
+    difficulty: 'easy',
+    completed: false,
+    isUnlocked: true,
+    category: 'beginner',
+    xpReward: 150
+  },
+  {
+    id: 'trial_2',
+    title: 'Mind Master',
+    description: 'Maintain a 7-day streak on any habit',
+    xp: 300,
+    coins: 30,
+    difficulty: 'medium',
+    completed: false,
+    isUnlocked: true,
+    category: 'habits',
+    xpReward: 300
+  },
+  {
+    id: 'trial_3',
+    title: 'Shadow Ascendant',
+    description: 'Reach level 10 and complete 50 total quests',
+    xp: 500,
+    coins: 50,
+    difficulty: 'hard',
+    completed: false,
+    isUnlocked: true,
+    category: 'skills',
+    xpReward: 500
+  }
+];
+
 export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const { session } = useAuth();
   const [stats, setStats] = useState<PlayerStats>(defaultStats);
@@ -184,10 +253,13 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [skillTree, setSkillTree] = useState<SkillNode[]>([]);
   const [calendarData, setCalendarData] = useState<Record<string, CalendarEntry>>({});
-  const [shadowTrials, setShadowTrials] = useState<ShadowTrial[]>([]);
+  const [shadowTrials, setShadowTrials] = useState<ShadowTrial[]>(defaultShadowTrials);
   const [masteredSkills, setMasteredSkills] = useState<SkillNode[]>([]);
   const [activeSkillQuests, setActiveSkillQuests] = useState<Quest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [levelUpAnimation, setLevelUpAnimation] = useState(false);
+  const [levelUpData, setLevelUpData] = useState<any>(null);
+  const [justMasteredSkillId, setJustMasteredSkillId] = useState<string | null>(null);
 
   const getXPByDifficulty = (difficulty?: string): number => {
     switch (difficulty) {
@@ -268,7 +340,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
           setJournalEntries(data.settings.journalEntries || []);
           setSkillTree(data.settings.skillTree || []);
           setCalendarData(data.settings.calendarData || {});
-          setShadowTrials(data.settings.shadowTrials || []);
+          setShadowTrials(data.settings.shadowTrials || defaultShadowTrials);
           setMasteredSkills(data.settings.masteredSkills || []);
           setActiveSkillQuests(data.settings.activeSkillQuests || []);
         }
@@ -280,7 +352,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const restartProgress = async () => {
+  const resetAllData = async () => {
     if (!session?.user?.id) return;
 
     try {
@@ -292,7 +364,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         journalEntries: [],
         skillTree: [],
         calendarData: {},
-        shadowTrials: [],
+        shadowTrials: defaultShadowTrials,
         masteredSkills: [],
         activeSkillQuests: []
       };
@@ -322,7 +394,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       setJournalEntries([]);
       setSkillTree([]);
       setCalendarData({});
-      setShadowTrials([]);
+      setShadowTrials(defaultShadowTrials);
       setMasteredSkills([]);
       setActiveSkillQuests([]);
 
@@ -331,7 +403,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
       toast.success('Progress restarted successfully!');
     } catch (err) {
-      console.error('Error in restartProgress:', err);
+      console.error('Error in resetAllData:', err);
       toast.error('Failed to restart progress');
     }
   };
@@ -348,11 +420,18 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         updated.availablePoints += 1;
         updated.statPointsToAllocate += 1;
         
+        setLevelUpAnimation(true);
+        setLevelUpData({ level: updated.level });
         toast.success(`Level Up! You are now level ${updated.level}!`);
       }
       
       return updated;
     });
+  };
+
+  const clearLevelUpData = () => {
+    setLevelUpAnimation(false);
+    setLevelUpData(null);
   };
 
   const addHabit = (habit: Omit<Habit, 'id'>) => {
@@ -445,6 +524,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     toast.success(`Quest completed! +${quest.xp} XP, +${quest.coins} coins`);
   };
 
+  const toggleQuest = (questId: string) => {
+    completeQuest(questId);
+  };
+
   const deleteQuest = (questId: string) => {
     setQuests(prev => prev.filter(quest => quest.id !== questId));
   };
@@ -455,12 +538,17 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     ));
   };
 
-  const addJournalEntry = (entry: Omit<JournalEntry, 'id'>) => {
-    const newEntry: JournalEntry = {
-      ...entry,
-      id: Date.now().toString(),
-    };
-    setJournalEntries(prev => [...prev, newEntry]);
+  const addJournalEntry = (entry: Omit<JournalEntry, 'id'>, entryId?: string | null) => {
+    if (entryId) {
+      updateJournalEntry(entryId, entry);
+    } else {
+      const newEntry: JournalEntry = {
+        ...entry,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+      };
+      setJournalEntries(prev => [...prev, newEntry]);
+    }
   };
 
   const updateJournalEntry = (entryId: string, updates: Partial<JournalEntry>) => {
@@ -495,7 +583,24 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const completeShadowTrial = (trialId: string) => {
     setShadowTrials(prev => prev.map(trial => 
       trial.id === trialId 
-        ? { ...trial, completed: true, completedAt: new Date().toISOString() }
+        ? { ...trial, completed: true, isCompleted: true, completedAt: new Date().toISOString() }
+        : trial
+    ));
+    
+    const trial = shadowTrials.find(t => t.id === trialId);
+    if (trial) {
+      updateStats({
+        xp: stats.xp + trial.xp,
+        coins: stats.coins + trial.coins,
+      });
+      toast.success(`Shadow Trial completed! +${trial.xp} XP, +${trial.coins} coins`);
+    }
+  };
+
+  const undoShadowTrial = (trialId: string) => {
+    setShadowTrials(prev => prev.map(trial => 
+      trial.id === trialId 
+        ? { ...trial, completed: false, isCompleted: false, completedAt: undefined }
         : trial
     ));
   };
@@ -506,6 +611,36 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       name: profile.name,
       class: profile.class
     }));
+  };
+
+  const setConfettiConfig = (config: any) => {
+    // Implementation for confetti config
+  };
+
+  const addSkillNode = (node: SkillNode) => {
+    setSkillTree(prev => [...prev, node]);
+  };
+
+  const updateSkillNode = (nodeId: string, updates: Partial<SkillNode>) => {
+    setSkillTree(prev => prev.map(node => 
+      node.id === nodeId ? { ...node, ...updates } : node
+    ));
+  };
+
+  const startSkillQuest = (nodeId: string) => {
+    // Implementation for starting skill quest
+  };
+
+  const cancelSkillQuest = (nodeId: string) => {
+    // Implementation for canceling skill quest
+  };
+
+  const toggleSkillTask = (nodeId: string, taskId: string) => {
+    // Implementation for toggling skill task
+  };
+
+  const deleteSkillNode = (nodeId: string) => {
+    setSkillTree(prev => prev.filter(node => node.id !== nodeId));
   };
 
   useEffect(() => {
@@ -533,6 +668,9 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     masteredSkills,
     activeSkillQuests,
     isLoading,
+    levelUpAnimation,
+    levelUpData,
+    justMasteredSkillId,
     updateStats,
     addHabit,
     toggleHabit,
@@ -548,10 +686,20 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     updateCalendarEntry,
     addShadowTrial,
     completeShadowTrial,
+    undoShadowTrial,
     updatePlayerProfile,
     saveToSupabase,
     loadFromSupabase,
-    restartProgress,
+    resetAllData,
+    clearLevelUpData,
+    toggleQuest,
+    setConfettiConfig,
+    addSkillNode,
+    updateSkillNode,
+    startSkillQuest,
+    cancelSkillQuest,
+    toggleSkillTask,
+    deleteSkillNode,
   };
 
   return (
