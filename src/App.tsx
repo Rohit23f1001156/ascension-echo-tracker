@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { PlayerProvider } from "@/context/PlayerContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import LevelUpConfetti from "@/components/LevelUpConfetti";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -32,18 +33,58 @@ function App() {
             <PlayerProvider>
               <LevelUpConfetti />
               <Routes>
-                <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
-                <Route path="/onboarding" element={<Onboarding />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/journal" element={<Journal />} />
-                <Route path="/skill-tree" element={<SkillTree />} />
-                <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/stats" element={<Stats />} />
-                <Route path="/daily-quests" element={<DailyQuests />} />
-                <Route path="/custom-tasks" element={<CustomTasks />} />
-                <Route path="/boss-fights" element={<BossFights />} />
+                <Route path="/onboarding" element={
+                  <ProtectedRoute>
+                    <Onboarding />
+                  </ProtectedRoute>
+                } />
+                <Route path="/" element={
+                  <ProtectedRoute>
+                    <Index />
+                  </ProtectedRoute>
+                } />
+                <Route path="/settings" element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                } />
+                <Route path="/journal" element={
+                  <ProtectedRoute>
+                    <Journal />
+                  </ProtectedRoute>
+                } />
+                <Route path="/skill-tree" element={
+                  <ProtectedRoute>
+                    <SkillTree />
+                  </ProtectedRoute>
+                } />
+                <Route path="/calendar" element={
+                  <ProtectedRoute>
+                    <CalendarPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/stats" element={
+                  <ProtectedRoute>
+                    <Stats />
+                  </ProtectedRoute>
+                } />
+                <Route path="/daily-quests" element={
+                  <ProtectedRoute>
+                    <DailyQuests />
+                  </ProtectedRoute>
+                } />
+                <Route path="/custom-tasks" element={
+                  <ProtectedRoute>
+                    <CustomTasks />
+                  </ProtectedRoute>
+                } />
+                <Route path="/boss-fights" element={
+                  <ProtectedRoute>
+                    <BossFights />
+                  </ProtectedRoute>
+                } />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </PlayerProvider>

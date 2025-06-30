@@ -178,9 +178,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (created) {
               clearPlayerData();
               toast.info('Welcome! Please complete your profile setup.');
-              setTimeout(() => {
-                window.location.href = '/onboarding';
-              }, 100);
+              if (window.location.pathname !== '/onboarding') {
+                setTimeout(() => {
+                  window.location.href = '/onboarding';
+                }, 100);
+              }
             }
           } else {
             console.error('Error fetching profile:', error);
@@ -190,19 +192,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('Profile found:', profile);
           
           if (profile.onboarding_complete === true) {
-            console.log('Loading existing profile from Supabase:', profile);
-            
-            if (profile.stats) {
-              localStorage.setItem('playerStats', JSON.stringify(profile.stats));
-              console.log('Loaded stats from Supabase:', profile.stats);
-            }
-            if (profile.settings) {
-              localStorage.setItem('playerProfile', JSON.stringify(profile.settings));
-              console.log('Loaded settings from Supabase:', profile.settings);
-            }
-            
+            console.log('User has completed onboarding, loading profile data');
             localStorage.setItem('onboardingComplete', 'true');
-            toast.success('Welcome back! Your progress has been loaded.');
             
             // If user is on onboarding page but has completed it, redirect to home
             if (window.location.pathname === '/onboarding') {
@@ -221,7 +212,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } catch (err) {
         console.error('Error syncing profile:', err);
-        toast.error('Failed to sync your profile. Using local storage for now.');
+        toast.error('Failed to sync your profile.');
       }
     } else {
       console.log('No session, clearing player data');
@@ -232,14 +223,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const getSession = async () => {
       try {
+        setLoading(true);
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
           toast.error('Authentication error: ' + error.message);
         }
-        await syncProfile(session);
+        
         setSession(session);
         setUser(session?.user ?? null);
+        
+        if (session) {
+          await syncProfile(session);
+        }
       } catch (err) {
         console.error('Error in getSession:', err);
         toast.error('Failed to load session.');
@@ -257,15 +253,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         clearPlayerData();
         setSession(null);
         setUser(null);
-        toast.info('Logged out successfully.');
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
       
       if (event === 'SIGNED_IN') {
-        await syncProfile(session);
         setSession(session);
         setUser(session?.user ?? null);
-        toast.success('Logged in successfully!');
+        await syncProfile(session);
       }
     });
 

@@ -435,7 +435,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     
     setStats(prev => ({
       ...prev,
-      [stat]: prev[stat as keyof PlayerStats] + 1,
+      [stat]: (prev[stat as keyof PlayerStats] as number) + 1,
       statPointsToAllocate: prev.statPointsToAllocate - 1,
       availablePoints: prev.availablePoints - 1
     }));
